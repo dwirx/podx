@@ -1,6 +1,7 @@
 package project
 
 import (
+	"encoding/base64"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -185,32 +186,102 @@ func (p *Project) EncryptAll() (int, error) {
 				continue
 			}
 
-			// Read plaintext
-			plaintext, err := os.ReadFile(match)
-			if err != nil {
-				fmt.Printf("⚠️  Skipped %s: %v\n", match, err)
-				continue
-			}
-
-			// Encrypt with Age
-			ciphertext, err := crypto.AgeEncrypt(plaintext, recipientKeys...)
-			if err != nil {
-				return count, fmt.Errorf("failed to encrypt %s: %w", match, err)
-			}
-
-			// Write encrypted file
-			encPath := match + EncryptedExt
-			if err := os.WriteFile(encPath, ciphertext, 0644); err != nil {
-				return count, fmt.Errorf("failed to write %s: %w", encPath, err)
-			}
-
 			relPath, _ := filepath.Rel(p.RootDir, match)
-			fmt.Printf("✓ Encrypted: %s → %s%s\n", relPath, relPath, EncryptedExt)
+			baseName := filepath.Base(match)
+
+			// Check if it's a .env file - use format-preserving encryption
+			if strings.HasPrefix(baseName, ".env") || strings.HasSuffix(baseName, ".env") {
+				if err := p.encryptEnvFile(match, recipientKeys); err != nil {
+					return count, fmt.Errorf("failed to encrypt %s: %w", relPath, err)
+				}
+				fmt.Printf("✓ Encrypted: %s → %s%s (format-preserving)\n", relPath, relPath, EncryptedExt)
+			} else {
+				// Regular file encryption
+				if err := p.encryptRegularFile(match, recipientKeys); err != nil {
+					return count, fmt.Errorf("failed to encrypt %s: %w", relPath, err)
+				}
+				fmt.Printf("✓ Encrypted: %s → %s%s\n", relPath, relPath, EncryptedExt)
+			}
+
+			// Delete original file after successful encryption
+			if err := os.Remove(match); err != nil {
+				fmt.Printf("⚠️  Could not delete original: %s\n", err)
+			} else {
+				fmt.Printf("🗑️  Deleted original: %s\n", relPath)
+			}
+
 			count++
 		}
 	}
 
 	return count, nil
+}
+
+// encryptEnvFile encrypts a .env file preserving its format (KEY=ENC[...] format)
+func (p *Project) encryptEnvFile(filePath string, recipientKeys []string) error {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return err
+	}
+
+	lines := strings.Split(string(data), "\n")
+	var result []string
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		// Keep comments and empty lines
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			result = append(result, line)
+			continue
+		}
+
+		// Parse KEY=VALUE
+		idx := strings.Index(line, "=")
+		if idx == -1 {
+			result = append(result, line)
+			continue
+		}
+
+		key := line[:idx]
+		value := line[idx+1:]
+
+		// Skip already encrypted values
+		if strings.HasPrefix(value, "ENC[") {
+			result = append(result, line)
+			continue
+		}
+
+		// Encrypt value with Age
+		ciphertext, err := crypto.AgeEncrypt([]byte(value), recipientKeys...)
+		if err != nil {
+			return fmt.Errorf("failed to encrypt key '%s': %w", key, err)
+		}
+
+		// Format as ENC[age:base64]
+		encValue := fmt.Sprintf("ENC[age:%s]", base64.StdEncoding.EncodeToString(ciphertext))
+		result = append(result, fmt.Sprintf("%s=%s", key, encValue))
+	}
+
+	// Write encrypted .env file
+	encPath := filePath + EncryptedExt
+	return os.WriteFile(encPath, []byte(strings.Join(result, "\n")), 0644)
+}
+
+// encryptRegularFile encrypts a regular file (binary encryption)
+func (p *Project) encryptRegularFile(filePath string, recipientKeys []string) error {
+	plaintext, err := os.ReadFile(filePath)
+	if err != nil {
+		return err
+	}
+
+	ciphertext, err := crypto.AgeEncrypt(plaintext, recipientKeys...)
+	if err != nil {
+		return err
+	}
+
+	encPath := filePath + EncryptedExt
+	return os.WriteFile(encPath, ciphertext, 0644)
 }
 
 // DecryptAll decrypts all encrypted secret files
@@ -231,32 +302,98 @@ func (p *Project) DecryptAll() (int, error) {
 		}
 
 		for _, match := range matches {
-			// Read ciphertext
-			ciphertext, err := os.ReadFile(match)
-			if err != nil {
-				fmt.Printf("⚠️  Skipped %s: %v\n", match, err)
-				continue
-			}
-
-			// Decrypt with Age
-			plaintext, err := crypto.AgeDecrypt(ciphertext, identity)
-			if err != nil {
-				return count, fmt.Errorf("failed to decrypt %s: %w", match, err)
-			}
-
-			// Write decrypted file (remove .podx extension)
 			decPath := strings.TrimSuffix(match, EncryptedExt)
-			if err := os.WriteFile(decPath, plaintext, 0600); err != nil {
-				return count, fmt.Errorf("failed to write %s: %w", decPath, err)
+			relPath, _ := filepath.Rel(p.RootDir, decPath)
+			baseName := filepath.Base(decPath)
+
+			// Check if it's a .env file
+			if strings.HasPrefix(baseName, ".env") || strings.HasSuffix(baseName, ".env") {
+				if err := p.decryptEnvFile(match, decPath, identity); err != nil {
+					return count, fmt.Errorf("failed to decrypt %s: %w", relPath, err)
+				}
+				fmt.Printf("✓ Decrypted: %s%s → %s (format-preserving)\n", relPath, EncryptedExt, relPath)
+			} else {
+				if err := p.decryptRegularFile(match, decPath, identity); err != nil {
+					return count, fmt.Errorf("failed to decrypt %s: %w", relPath, err)
+				}
+				fmt.Printf("✓ Decrypted: %s%s → %s\n", relPath, EncryptedExt, relPath)
 			}
 
-			relPath, _ := filepath.Rel(p.RootDir, decPath)
-			fmt.Printf("✓ Decrypted: %s%s → %s\n", relPath, EncryptedExt, relPath)
 			count++
 		}
 	}
 
 	return count, nil
+}
+
+// decryptEnvFile decrypts a format-preserving .env file
+func (p *Project) decryptEnvFile(encPath, decPath, identity string) error {
+	data, err := os.ReadFile(encPath)
+	if err != nil {
+		return err
+	}
+
+	lines := strings.Split(string(data), "\n")
+	var result []string
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		// Keep comments and empty lines
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			result = append(result, line)
+			continue
+		}
+
+		// Parse KEY=VALUE
+		idx := strings.Index(line, "=")
+		if idx == -1 {
+			result = append(result, line)
+			continue
+		}
+
+		key := line[:idx]
+		value := line[idx+1:]
+
+		// Check if value is encrypted (ENC[age:base64])
+		if strings.HasPrefix(value, "ENC[age:") && strings.HasSuffix(value, "]") {
+			// Extract base64 ciphertext
+			encData := strings.TrimPrefix(value, "ENC[age:")
+			encData = strings.TrimSuffix(encData, "]")
+
+			ciphertext, err := base64.StdEncoding.DecodeString(encData)
+			if err != nil {
+				return fmt.Errorf("invalid base64 for key '%s': %w", key, err)
+			}
+
+			plaintext, err := crypto.AgeDecrypt(ciphertext, identity)
+			if err != nil {
+				return fmt.Errorf("failed to decrypt key '%s': %w", key, err)
+			}
+
+			result = append(result, fmt.Sprintf("%s=%s", key, string(plaintext)))
+		} else {
+			// Value is not encrypted, keep as-is
+			result = append(result, line)
+		}
+	}
+
+	return os.WriteFile(decPath, []byte(strings.Join(result, "\n")), 0600)
+}
+
+// decryptRegularFile decrypts a binary encrypted file
+func (p *Project) decryptRegularFile(encPath, decPath, identity string) error {
+	ciphertext, err := os.ReadFile(encPath)
+	if err != nil {
+		return err
+	}
+
+	plaintext, err := crypto.AgeDecrypt(ciphertext, identity)
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(decPath, plaintext, 0600)
 }
 
 // UpdateGitignore adds decrypted secret patterns to .gitignore
