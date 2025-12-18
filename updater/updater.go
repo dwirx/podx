@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"runtime"
 	"strings"
 )
@@ -151,9 +152,17 @@ func Update(currentVersion string) error {
 		return fmt.Errorf("failed to set permissions: %w", err)
 	}
 
+	// Check if we have write permission to the binary directory
+	if !canWrite(execPath) {
+		return runWithElevatedPrivileges()
+	}
+
 	// Backup current binary
 	backupPath := execPath + ".bak"
 	if err := os.Rename(execPath, backupPath); err != nil {
+		if os.IsPermission(err) {
+			return runWithElevatedPrivileges()
+		}
 		return fmt.Errorf("failed to backup current binary: %w", err)
 	}
 
@@ -161,6 +170,9 @@ func Update(currentVersion string) error {
 	if err := os.Rename(tmpPath, execPath); err != nil {
 		// Restore backup
 		os.Rename(backupPath, execPath)
+		if os.IsPermission(err) {
+			return runWithElevatedPrivileges()
+		}
 		return fmt.Errorf("failed to install new binary: %w", err)
 	}
 
@@ -172,6 +184,53 @@ func Update(currentVersion string) error {
 
 	return nil
 }
+
+// canWrite checks if we have write permission to the directory containing the file
+func canWrite(path string) bool {
+	// Try opening the file for writing
+	f, err := os.OpenFile(path, os.O_WRONLY, 0)
+	if err != nil {
+		return false
+	}
+	f.Close()
+	return true
+}
+
+// runWithElevatedPrivileges re-runs the update command with sudo (Unix) or prompts for admin (Windows)
+func runWithElevatedPrivileges() error {
+	execPath, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("failed to get executable path: %w", err)
+	}
+
+	if runtime.GOOS == "windows" {
+		fmt.Println("\n⚠️  Permission denied. Please run as Administrator:")
+		fmt.Printf("   Right-click Command Prompt → Run as Administrator\n")
+		fmt.Printf("   Then run: podx update\n")
+		return fmt.Errorf("administrator privileges required")
+	}
+
+	// Unix systems - use sudo
+	fmt.Println("\n🔐 Permission denied. Requesting elevated privileges...")
+
+	cmd := exec.Command("sudo", execPath, "update")
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			os.Exit(exitErr.ExitCode())
+		}
+		return fmt.Errorf("sudo failed: %w", err)
+	}
+
+	// Exit after sudo completes successfully
+	os.Exit(0)
+	return nil
+}
+
+
 
 // CheckUpdate checks if update is available (non-blocking)
 func CheckUpdate(currentVersion string) (string, bool) {
