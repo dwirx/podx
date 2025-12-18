@@ -1,0 +1,34 @@
+# Binaries
+podx
+podx-*
+*.exe
+
+# Build artifacts
+dist/
+release/
+checksums.txt
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Go
+go.work
+
+# Test files
+test.env
+test.*.env
+*.enc
+*.dec.txt
+
+# Secrets (user projects)
+.env
+!.env.example
+*.podx.bak

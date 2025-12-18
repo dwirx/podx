@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
 	"strings"
 	"syscall"
 
@@ -14,12 +15,17 @@ import (
 	"github.com/hades/podx/keygen"
 	"github.com/hades/podx/parser"
 	"github.com/hades/podx/project"
+	"github.com/hades/podx/updater"
 	"golang.org/x/term"
 )
 
-const (
-	version = "3.0.0"
-	banner  = `
+// Version info - injected at build time via ldflags
+var (
+	Version   = "1.0.0"
+	BuildTime = "unknown"
+)
+
+const banner = `
 ╔═══════════════════════════════════════════╗
 ║  ██████╗  ██████╗ ██████╗ ██╗  ██╗        ║
 ║  ██╔══██╗██╔═══██╗██╔══██╗╚██╗██╔╝        ║
@@ -27,10 +33,9 @@ const (
 ║  ██╔═══╝ ██║   ██║██║  ██║ ██╔██╗         ║
 ║  ██║     ╚██████╔╝██████╔╝██╔╝ ██╗        ║
 ║  ╚═╝      ╚═════╝ ╚═════╝ ╚═╝  ╚═╝        ║
-║  🔐 Encryption Tool v%s                  ║
+║  🔐 Encryption Tool %s                    ║
 ╚═══════════════════════════════════════════╝
 `
-)
 
 func main() {
 	if len(os.Args) < 2 {
@@ -63,8 +68,10 @@ func main() {
 		handleEnv(os.Args[2], os.Args[3:])
 	case "keygen":
 		handleKeygen(os.Args[2:])
-	case "version":
-		fmt.Printf("PODX v%s\n", version)
+	case "update":
+		handleUpdate()
+	case "version", "-v", "--version":
+		printVersion()
 	case "help", "-h", "--help":
 		printUsage()
 	default:
@@ -75,7 +82,7 @@ func main() {
 }
 
 func printUsage() {
-	fmt.Printf(banner, version)
+	fmt.Printf(banner, Version)
 	fmt.Println(`
 PROJECT COMMANDS:
   init           Initialize PODX project (.podx.yaml)
@@ -90,12 +97,17 @@ FILE COMMANDS:
   env        Encrypt/decrypt .env file (format-preserving)
   keygen     Generate Age or GPG key pair
 
+OTHER:
+  update     Self-update to latest version
+  version    Show version info
+
 USAGE:
   podx init                              # Init project
   podx add-recipient -n "Name" -k KEY    # Add team member
   podx encrypt-all                       # Encrypt all secrets
   podx decrypt-all                       # Decrypt all secrets
   podx keygen -t age                     # Generate Age key
+  podx update                            # Update to latest
   podx encrypt -a aes-gcm -i F -o F.enc  # Encrypt file
   podx env encrypt -i .env -o .env.podx  # Encrypt .env`)
 }
@@ -541,4 +553,23 @@ func handleStatus() {
 	}
 
 	fmt.Println(p.Status())
+}
+
+func printVersion() {
+	fmt.Printf("PODX %s\n", Version)
+	fmt.Printf("Build time: %s\n", BuildTime)
+	fmt.Printf("Platform: %s/%s\n", runtime.GOOS, runtime.GOARCH)
+	
+	// Check for updates in background
+	if newVersion, available := updater.CheckUpdate(Version); available {
+		fmt.Printf("\n📦 New version available: %s\n", newVersion)
+		fmt.Println("   Run 'podx update' to upgrade")
+	}
+}
+
+func handleUpdate() {
+	if err := updater.Update(Version); err != nil {
+		fmt.Println("Error:", err)
+		os.Exit(1)
+	}
 }

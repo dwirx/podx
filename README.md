@@ -1,47 +1,51 @@
 # PODX
 
-🔐 **Encryption CLI** with **project workspace** support, **Age**, **GPG**, **AES-GCM**, and **ChaCha20**.
+🔐 **Encryption CLI** with project workspace, Age, GPG, AES-GCM, ChaCha20.
+
+## Installation
+
+### Linux / macOS (One-liner)
+```bash
+curl -fsSL https://raw.githubusercontent.com/dwirx/podx/main/install.sh | bash
+```
+
+### Windows (PowerShell as Admin)
+```powershell
+iwr -useb https://raw.githubusercontent.com/dwirx/podx/main/install.ps1 | iex
+```
+
+### Manual Download
+Download binary from [Releases](https://github.com/dwirx/podx/releases):
+- `podx-linux-amd64` - Linux Intel/AMD
+- `podx-linux-arm64` - Linux ARM
+- `podx-darwin-amd64` - macOS Intel
+- `podx-darwin-arm64` - macOS Apple Silicon
+- `podx-windows-amd64.exe` - Windows
+
+### Build from Source
+```bash
+git clone https://github.com/dwirx/podx
+cd podx
+go build -o podx .
+```
 
 ## Quick Start
 
 ```bash
-# Build
-cd /home/hades/fun/ironvault
-go build -o podx .
+# 1. Generate key
+podx keygen -t age
 
-# Generate key
-./podx keygen -t age
-
-# Initialize project
-./podx init
-
-# Create .env
-echo "API_KEY=secret123" > .env
-
-# Encrypt all secrets
-./podx encrypt-all
-
-# Decrypt all secrets
-./podx decrypt-all
-```
-
-## Project Workflow
-
-```bash
-# 1. Initialize project (creates .podx.yaml)
+# 2. Init project
 podx init
 
-# 2. Add team members
-podx add-recipient -n "Team Member" -k age1xxx...
+# 3. Create secrets
+echo "API_KEY=secret123" > .env
 
-# 3. Encrypt secrets before committing
+# 4. Encrypt & commit
 podx encrypt-all
-
-# 4. Commit encrypted files
 git add .podx.yaml .env.podx
-git commit -m "Add encrypted secrets"
 
-# 5. Team member decrypts after clone
+# 5. Decrypt after clone
 podx decrypt-all
 ```
 
@@ -49,7 +53,7 @@ podx decrypt-all
 
 | Command | Description |
 |---------|-------------|
-| `init` | Initialize PODX project |
+| `init` | Initialize project |
 | `add-recipient` | Add team member |
 | `encrypt-all` | Encrypt all secrets |
 | `decrypt-all` | Decrypt all secrets |
@@ -57,7 +61,15 @@ podx decrypt-all
 | `keygen` | Generate Age/GPG keys |
 | `encrypt` | Encrypt single file |
 | `decrypt` | Decrypt single file |
-| `env encrypt` | Encrypt .env (format-preserving) |
+| `update` | Self-update |
+| `version` | Show version info |
+
+## Self-Update
+
+```bash
+podx update    # Update to latest version
+podx version   # Check current version
+```
 
 ## Config (.podx.yaml)
 
@@ -66,42 +78,19 @@ version: 1
 backend: age
 recipients:
   - name: Owner
-    key: age1xc2ttxdm60507q6wqqmsk695arqxn4x3zpq43dkstwxhaxkccaxspz47na
-  - name: Team Member
-    key: age1abc...
+    key: age1xc2ttxdm60507...
 secrets:
   - .env
-  - config/secrets.yaml
 ```
 
-## File Structure
-
-```
-project/
-├── .podx.yaml        # Config (commit to git)
-├── .env.podx         # Encrypted (commit to git)
-├── .env              # Decrypted (gitignored)
-└── .gitignore        # Auto-updated
-```
-
-## Keygen
+## Releasing (for maintainers)
 
 ```bash
-# Generate Age key pair
-podx keygen -t age
+# Create and push tag
+git tag v1.0.0
+git push origin v1.0.0
 
-# Output:
-# ╔══════════════════════════════════════════════════════════════════════╗
-# ║                 🔑 PODX Key Generated Successfully                 ║
-# ╠══════════════════════════════════════════════════════════════════════╣
-# ║ Backend: age                                                         ║
-# ║ Key file: ~/.config/podx/age-keys.txt                                ║
-# ╠══════════════════════════════════════════════════════════════════════╣
-# ║ Public Key:                                                          ║
-# ║   age1xc2ttxdm60507q6wqqmsk695arqxn4x3zpq43dkstwxhaxkccaxspz47na     ║
-# ║ Private Key:                                                         ║
-# ║   AGE-SECRET-KEY-1R5JXEELUTZSVS5TJHJ66X57ZJJ3P9AJYJ...               ║
-# ╚══════════════════════════════════════════════════════════════════════╝
+# GitHub Actions auto-builds all platforms
 ```
 
 ## License
