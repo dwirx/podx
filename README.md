@@ -130,6 +130,51 @@ podx decrypt-all
 
 ---
 
+## Interactive TUI Mode
+
+PODX includes a beautiful interactive TUI (Terminal User Interface) for easy navigation.
+
+### Launch TUI
+
+```bash
+# Just run podx without arguments
+podx
+
+# Or explicitly
+podx tui
+```
+
+### TUI Features
+
+- 🔐 **Password Encryption** — Encrypt with AES-GCM (password required)
+- 🔑 **Age Key Encryption** — Encrypt with Age public key (no password!)
+- 📂 **File Browser** — Navigate directories, type to filter
+- 💾 **Auto-suggest Output** — Output path generated automatically
+- 🎨 **Beautiful Styling** — Modern purple theme
+
+### Keyboard Shortcuts
+
+| Key | Action |
+|-----|--------|
+| `↑` / `↓` | Navigate menu / files |
+| `Enter` | Select / Open folder |
+| Type letters | Filter files |
+| `h` | Toggle hidden files |
+| `Esc` | Cancel / Back |
+| `q` | Quit |
+
+### TUI Workflow
+
+**Password Encryption:**
+1. Select **🔐 Encrypt (Password)**
+2. Browse and select a file
+3. Enter password → Done!
+
+**Age Key Encryption (Recommended):**
+1. First generate a key: `podx keygen -t age`
+2. Select **🔑 Encrypt (Age Key)**
+3. Browse and select a file → Done! (No password needed)
+
 ## Project Workflow
 
 ### 1. Initialize Project

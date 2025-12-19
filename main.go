@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"syscall"
@@ -15,6 +16,7 @@ import (
 	"github.com/hades/podx/keygen"
 	"github.com/hades/podx/parser"
 	"github.com/hades/podx/project"
+	"github.com/hades/podx/tui"
 	"github.com/hades/podx/updater"
 	"golang.org/x/term"
 )
@@ -39,13 +41,23 @@ const banner = `
 
 func main() {
 	if len(os.Args) < 2 {
-		printUsage()
-		os.Exit(1)
+		// Launch TUI mode when no arguments
+		if err := tui.Run(Version); err != nil {
+			fmt.Println("Error running TUI:", err)
+			os.Exit(1)
+		}
+		return
 	}
 
 	cmd := os.Args[1]
 
 	switch cmd {
+	case "tui":
+		// Explicit TUI launch
+		if err := tui.Run(Version); err != nil {
+			fmt.Println("Error running TUI:", err)
+			os.Exit(1)
+		}
 	case "init":
 		handleInit()
 	case "add-recipient":
@@ -98,10 +110,13 @@ FILE COMMANDS:
   keygen     Generate Age or GPG key pair
 
 OTHER:
+  tui        Launch interactive TUI mode
   update     Self-update to latest version
   version    Show version info
 
 USAGE:
+  podx                                   # Launch TUI mode
+  podx tui                               # Launch TUI mode
   podx init                              # Init project
   podx add-recipient -n "Name" -k KEY    # Add team member
   podx encrypt-all                       # Encrypt all secrets
@@ -128,8 +143,19 @@ func handleEncrypt(args []string) {
 		os.Exit(1)
 	}
 
-	if *input == "" || *output == "" {
-		fmt.Println("Error: input (-i) and output (-o) are required")
+	if *input == "" {
+		fmt.Println("Error: input (-i) is required")
+		os.Exit(1)
+	}
+	if *output == "" {
+		*output = deriveEncryptOutput(*input)
+	}
+	if *output == "" {
+		fmt.Println("Error: output (-o) is required")
+		os.Exit(1)
+	}
+	if samePath(*input, *output) {
+		fmt.Println("Error: output must be different from input")
 		os.Exit(1)
 	}
 
@@ -179,6 +205,11 @@ func handleEncrypt(args []string) {
 	}
 
 	fmt.Printf("✓ Encrypted %s → %s (algorithm: %s)\n", *input, *output, *algo)
+	if err := removeOriginal(*input, *output); err != nil {
+		fmt.Println("Error deleting original:", err)
+		os.Exit(1)
+	}
+	fmt.Printf("🗑️  Deleted original: %s\n", *input)
 }
 
 func handleDecrypt(args []string) {
@@ -197,8 +228,19 @@ func handleDecrypt(args []string) {
 		os.Exit(1)
 	}
 
-	if *input == "" || *output == "" {
-		fmt.Println("Error: input (-i) and output (-o) are required")
+	if *input == "" {
+		fmt.Println("Error: input (-i) is required")
+		os.Exit(1)
+	}
+	if *output == "" {
+		*output = deriveDecryptOutput(*input)
+	}
+	if *output == "" {
+		fmt.Println("Error: output (-o) is required")
+		os.Exit(1)
+	}
+	if samePath(*input, *output) {
+		fmt.Println("Error: output must be different from input")
 		os.Exit(1)
 	}
 
@@ -272,15 +314,37 @@ func handleEnv(subcmd string, args []string) {
 		os.Exit(1)
 	}
 
-	if *input == "" || *output == "" {
-		fmt.Println("Error: input (-i) and output (-o) are required")
+	if *input == "" {
+		fmt.Println("Error: input (-i) is required")
 		os.Exit(1)
 	}
 
 	switch subcmd {
 	case "encrypt":
+		if *output == "" {
+			*output = deriveEnvEncryptOutput(*input)
+		}
+		if *output == "" {
+			fmt.Println("Error: output (-o) is required")
+			os.Exit(1)
+		}
+		if samePath(*input, *output) {
+			fmt.Println("Error: output must be different from input")
+			os.Exit(1)
+		}
 		handleEnvEncrypt(*input, *output, *algo, *password)
 	case "decrypt":
+		if *output == "" {
+			*output = deriveDecryptOutput(*input)
+		}
+		if *output == "" {
+			fmt.Println("Error: output (-o) is required")
+			os.Exit(1)
+		}
+		if samePath(*input, *output) {
+			fmt.Println("Error: output must be different from input")
+			os.Exit(1)
+		}
 		handleEnvDecrypt(*input, *output, *password)
 	default:
 		fmt.Printf("Unknown env subcommand: %s\n", subcmd)
@@ -326,6 +390,11 @@ func handleEnvEncrypt(input, output, algo, password string) {
 	}
 
 	fmt.Printf("✓ Encrypted .env: %s → %s (algorithm: %s)\n", input, output, algo)
+	if err := removeOriginal(input, output); err != nil {
+		fmt.Println("Error deleting original:", err)
+		os.Exit(1)
+	}
+	fmt.Printf("🗑️  Deleted original: %s\n", input)
 }
 
 func handleEnvDecrypt(input, output, password string) {
@@ -408,6 +477,52 @@ func getPassword(provided, prompt string) string {
 		os.Exit(1)
 	}
 	return strings.TrimSpace(password)
+}
+
+func samePath(a, b string) bool {
+	aAbs, errA := filepath.Abs(a)
+	bAbs, errB := filepath.Abs(b)
+	if errA == nil && errB == nil {
+		return aAbs == bAbs
+	}
+	return filepath.Clean(a) == filepath.Clean(b)
+}
+
+func removeOriginal(input, output string) error {
+	if samePath(input, output) {
+		return fmt.Errorf("output must be different from input")
+	}
+	return os.Remove(input)
+}
+
+func deriveEncryptOutput(input string) string {
+	if input == "" {
+		return ""
+	}
+	return input + ".enc"
+}
+
+func deriveEnvEncryptOutput(input string) string {
+	if input == "" {
+		return ""
+	}
+	return input + ".podx"
+}
+
+func deriveDecryptOutput(input string) string {
+	if input == "" {
+		return ""
+	}
+	switch {
+	case strings.HasSuffix(input, ".enc"):
+		return strings.TrimSuffix(input, ".enc")
+	case strings.HasSuffix(input, ".podx"):
+		return strings.TrimSuffix(input, ".podx")
+	case strings.HasSuffix(input, ".age"):
+		return strings.TrimSuffix(input, ".age")
+	default:
+		return input + ".dec"
+	}
 }
 
 func handleKeygen(args []string) {
@@ -559,7 +674,7 @@ func printVersion() {
 	fmt.Printf("PODX %s\n", Version)
 	fmt.Printf("Build time: %s\n", BuildTime)
 	fmt.Printf("Platform: %s/%s\n", runtime.GOOS, runtime.GOARCH)
-	
+
 	// Check for updates in background
 	if newVersion, available := updater.CheckUpdate(Version); available {
 		fmt.Printf("\n📦 New version available: %s\n", newVersion)
