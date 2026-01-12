@@ -208,36 +208,34 @@ func (m DashboardModel) renderNoProject() string {
 
 // renderDashboard renders the full dashboard view
 func (m DashboardModel) renderDashboard() string {
-	var sections []string
+	// Create horizontal layout with project info and security status side by side
+	projectCard := m.renderProjectInfo()
+	securityCard := m.renderSecurityStatus()
 
-	// Project Info Section
-	sections = append(sections, m.renderProjectInfo())
+	// Join cards horizontally if there's enough width
+	topRow := lipgloss.JoinHorizontal(lipgloss.Top, projectCard, securityCard)
 
-	// Security Status Section
-	sections = append(sections, m.renderSecurityStatus())
+	// Quick actions below
+	actionsCard := m.renderQuickActions()
 
-	// Quick Actions Section
-	sections = append(sections, m.renderQuickActions())
-
-	return lipgloss.JoinVertical(lipgloss.Left, sections...)
+	return lipgloss.JoinVertical(lipgloss.Left, topRow, actionsCard)
 }
 
 // renderProjectInfo renders project information
 func (m DashboardModel) renderProjectInfo() string {
 	var lines []string
 
-	lines = append(lines, TitleStyle.Render("Project Info"))
-	lines = append(lines, "")
+	lines = append(lines, CardTitleStyle.Render("[~] Project Info"))
 
 	// Path
-	lines = append(lines, fmt.Sprintf("  Path:    %s", m.project.RootDir))
+	lines = append(lines, fmt.Sprintf("  Path:    %s", MutedStyle.Render(m.project.RootDir)))
 
 	// Backend
-	lines = append(lines, fmt.Sprintf("  Backend: %s", m.project.Config.Backend))
+	lines = append(lines, fmt.Sprintf("  Backend: %s", SuccessStyle.Render(m.project.Config.Backend)))
 
 	// Recipients
 	recipientCount := len(m.project.Config.Recipients)
-	lines = append(lines, fmt.Sprintf("  Recipients: %d", recipientCount))
+	lines = append(lines, fmt.Sprintf("  Recipients: %s", SuccessStyle.Render(fmt.Sprintf("%d", recipientCount))))
 
 	for _, r := range m.project.Config.Recipients {
 		keyPreview := r.Key
@@ -249,93 +247,93 @@ func (m DashboardModel) renderProjectInfo() string {
 
 	// Secrets patterns
 	secretCount := len(m.project.Config.Secrets)
-	lines = append(lines, fmt.Sprintf("  Secrets: %d patterns", secretCount))
+	lines = append(lines, fmt.Sprintf("  Secrets: %s patterns", SuccessStyle.Render(fmt.Sprintf("%d", secretCount))))
 	for _, s := range m.project.Config.Secrets {
 		lines = append(lines, MutedStyle.Render(fmt.Sprintf("    - %s", s)))
 	}
 
-	return BoxStyle.Render(strings.Join(lines, "\n"))
+	return CardStyle.Render(strings.Join(lines, "\n"))
 }
 
 // renderSecurityStatus renders the security check status
 func (m DashboardModel) renderSecurityStatus() string {
 	var lines []string
 
-	lines = append(lines, TitleStyle.Render("Security Status"))
-	lines = append(lines, "")
+	lines = append(lines, CardTitleStyle.Render("[#] Security Status"))
 
 	if m.checkResult == nil {
 		lines = append(lines, MutedStyle.Render("  Checking..."))
-		return BoxStyle.Render(strings.Join(lines, "\n"))
+		return CardStyle.Render(strings.Join(lines, "\n"))
 	}
 
-	// Overall status
+	// Overall status with badge
 	if m.checkResult.Passed {
-		lines = append(lines, SuccessStyle.Render("  [PASS] All checks passed"))
+		lines = append(lines, "  Status: "+BadgeSuccessStyle.Render(" PASS "))
 	} else {
-		lines = append(lines, ErrorStyle.Render("  [FAIL] Some checks failed"))
+		lines = append(lines, "  Status: "+BadgeErrorStyle.Render(" FAIL "))
 	}
 
 	lines = append(lines, "")
 
 	// Encryption Issues
 	if len(m.checkResult.EncryptionIssues) == 0 {
-		lines = append(lines, SuccessStyle.Render("  Encryption: OK"))
+		lines = append(lines, SuccessStyle.Render("  [OK] Encryption"))
 	} else {
-		lines = append(lines, ErrorStyle.Render("  Encryption: Issues found"))
+		lines = append(lines, ErrorStyle.Render("  [!!] Encryption: Issues found"))
 		for _, issue := range m.checkResult.EncryptionIssues {
-			lines = append(lines, WarningStyle.Render(fmt.Sprintf("    - %s", issue)))
+			lines = append(lines, WarningStyle.Render(fmt.Sprintf("       - %s", issue)))
 		}
 	}
 
 	// Gitignore Issues
 	if len(m.checkResult.GitignoreIssues) == 0 {
-		lines = append(lines, SuccessStyle.Render("  Gitignore:  OK"))
+		lines = append(lines, SuccessStyle.Render("  [OK] Gitignore"))
 	} else {
-		lines = append(lines, WarningStyle.Render("  Gitignore:  Missing entries"))
+		lines = append(lines, WarningStyle.Render("  [!!] Gitignore: Missing entries"))
 		for _, pattern := range m.checkResult.GitignoreIssues {
-			lines = append(lines, WarningStyle.Render(fmt.Sprintf("    - %s", pattern)))
+			lines = append(lines, WarningStyle.Render(fmt.Sprintf("       - %s", pattern)))
 		}
 	}
 
 	// Secret Findings
 	if len(m.checkResult.SecretFindings) == 0 {
-		lines = append(lines, SuccessStyle.Render("  Scan:       No secrets detected"))
+		lines = append(lines, SuccessStyle.Render("  [OK] No secrets detected"))
 	} else {
-		lines = append(lines, ErrorStyle.Render(fmt.Sprintf("  Scan:       %d files with secrets", len(m.checkResult.SecretFindings))))
+		lines = append(lines, ErrorStyle.Render(fmt.Sprintf("  [!!] %d files with secrets", len(m.checkResult.SecretFindings))))
 	}
 
 	// Hook status
 	hookInstalled := security.IsHookInstalled(m.cwd)
 	if hookInstalled {
-		lines = append(lines, SuccessStyle.Render("  Hook:       Installed"))
+		lines = append(lines, SuccessStyle.Render("  [OK] Hook installed"))
 	} else {
-		lines = append(lines, WarningStyle.Render("  Hook:       Not installed"))
+		lines = append(lines, WarningStyle.Render("  [--] Hook not installed"))
 	}
 
-	return BoxStyle.Render(strings.Join(lines, "\n"))
+	return CardStyle.Render(strings.Join(lines, "\n"))
 }
 
 // renderQuickActions renders the quick actions menu
 func (m DashboardModel) renderQuickActions() string {
 	var lines []string
 
-	lines = append(lines, TitleStyle.Render("Quick Actions"))
-	lines = append(lines, "")
-	lines = append(lines, MutedStyle.Render("  Use j/k to navigate, Enter/l to execute"))
+	lines = append(lines, CardTitleStyle.Render("[>] Quick Actions"))
+	lines = append(lines, MutedStyle.Render("  Use j/k to navigate, Enter to execute"))
 	lines = append(lines, "")
 
+	actionIcons := []string{"[E]", "[D]", "[C]", "[H]"}
+
 	for i, action := range m.actions {
-		prefix := "  "
+		icon := actionIcons[i]
 		if i == m.selected {
-			// Selected item
-			lines = append(lines, SelectedStyle.Render(fmt.Sprintf("> [%d] %s", i+1, action)))
+			// Selected item with highlight
+			lines = append(lines, SelectedStyle.Render(fmt.Sprintf(" > %s %s ", icon, action)))
 		} else {
-			lines = append(lines, fmt.Sprintf("%s [%d] %s", prefix, i+1, action))
+			lines = append(lines, fmt.Sprintf("   %s %s", MutedStyle.Render(icon), action))
 		}
 	}
 
-	return BoxStyle.Render(strings.Join(lines, "\n"))
+	return CardStyle.Render(strings.Join(lines, "\n"))
 }
 
 // SetSize updates the model dimensions

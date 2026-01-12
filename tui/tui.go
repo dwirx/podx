@@ -17,8 +17,9 @@ const (
 	TabFiles
 )
 
-// Tab names
+// Tab names with icons
 var tabNames = []string{"Dashboard", "Commands", "Security", "Files"}
+var tabIcons = []string{"[*]", "[>]", "[#]", "[@]"}
 
 // Model is the main TUI model
 type Model struct {
@@ -195,15 +196,23 @@ func (m Model) View() string {
 
 // renderHeader renders the header section
 func (m Model) renderHeader() string {
-	title := TitleStyle.Render("PODX - Encryption Tool")
-	return title
+	icon := IconStyle.Render("[+]")
+	title := TitleStyle.Copy().MarginBottom(0).Render("PODX")
+	subtitle := MutedStyle.Render("Secure Encryption Tool")
+	version := MutedStyle.Render("v1.0")
+
+	header := lipgloss.JoinHorizontal(lipgloss.Center,
+		icon, " ", title, " ", MutedStyle.Render("|"), " ", subtitle, " ", version)
+
+	return HeaderStyle.Render(header)
 }
 
 // renderTabs renders the tab bar
 func (m Model) renderTabs() string {
 	var tabs []string
 	for i, name := range tabNames {
-		tabLabel := fmt.Sprintf(" %d %s ", i+1, name)
+		icon := tabIcons[i]
+		tabLabel := fmt.Sprintf(" %s %s ", icon, name)
 		if i == m.activeTab {
 			tabs = append(tabs, TabActiveStyle.Render(tabLabel))
 		} else {
