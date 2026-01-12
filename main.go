@@ -16,6 +16,7 @@ import (
 	"github.com/hades/podx/parser"
 	"github.com/hades/podx/project"
 	"github.com/hades/podx/security"
+	"github.com/hades/podx/tui"
 	"github.com/hades/podx/updater"
 	"golang.org/x/term"
 )
@@ -40,8 +41,12 @@ const banner = `
 
 func main() {
 	if len(os.Args) < 2 {
-		printUsage()
-		os.Exit(1)
+		// Launch TUI when no arguments
+		if err := tui.Run(); err != nil {
+			fmt.Println("Error:", err)
+			os.Exit(1)
+		}
+		return
 	}
 
 	cmd := os.Args[1]
