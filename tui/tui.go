@@ -14,10 +14,11 @@ const (
 	TabDashboard = iota
 	TabCommands
 	TabSecurity
+	TabFiles
 )
 
 // Tab names
-var tabNames = []string{"Dashboard", "Commands", "Security"}
+var tabNames = []string{"Dashboard", "Commands", "Security", "Files"}
 
 // Model is the main TUI model
 type Model struct {
@@ -32,6 +33,7 @@ type Model struct {
 	dashboard DashboardModel
 	commands  CommandsModel
 	security  SecurityModel
+	files     FilesModel
 }
 
 // NewModel creates a new TUI model
@@ -44,6 +46,7 @@ func NewModel() Model {
 		dashboard: NewDashboardModel(),
 		commands:  NewCommandsModel(),
 		security:  NewSecurityModel(),
+		files:     NewFilesModel(),
 	}
 }
 
@@ -53,6 +56,7 @@ func (m Model) Init() tea.Cmd {
 	return tea.Batch(
 		m.dashboard.Init(),
 		m.security.Init(),
+		m.files.Init(),
 	)
 }
 
@@ -96,6 +100,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.statusMsg = "Switched to Security"
 			return m, nil
 
+		case key.Matches(msg, m.keys.Tab4):
+			m.activeTab = TabFiles
+			m.statusMsg = "Switched to Files"
+			return m, nil
+
 		case key.Matches(msg, m.keys.Refresh):
 			m.statusMsg = "Refreshed"
 			return m, nil
@@ -110,6 +119,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.commands, cmd = m.commands.Update(msg)
 		case TabSecurity:
 			m.security, cmd = m.security.Update(msg)
+		case TabFiles:
+			m.files, cmd = m.files.Update(msg)
 		}
 		return m, cmd
 
@@ -122,6 +133,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.dashboard.SetSize(m.width, contentHeight)
 		m.commands.SetSize(m.width, contentHeight)
 		m.security.SetSize(m.width, contentHeight)
+		m.files.SetSize(m.width, contentHeight)
 
 		return m, nil
 
@@ -138,6 +150,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, cmd)
 		}
 		m.security, cmd = m.security.Update(msg)
+		if cmd != nil {
+			cmds = append(cmds, cmd)
+		}
+		m.files, cmd = m.files.Update(msg)
 		if cmd != nil {
 			cmds = append(cmds, cmd)
 		}
@@ -206,6 +222,8 @@ func (m Model) renderContent() string {
 		return m.commands.View()
 	case TabSecurity:
 		return m.security.View()
+	case TabFiles:
+		return m.files.View()
 	default:
 		return ""
 	}
@@ -226,7 +244,12 @@ func (m Model) renderHelp() string {
 		"  Tabs:",
 		"    tab       - Next tab",
 		"    shift+tab - Previous tab",
-		"    1/2/3     - Jump to tab",
+		"    1/2/3/4   - Jump to tab",
+		"",
+		"  Files Tab:",
+		"    e         - Encrypt file",
+		"    d         - Decrypt file",
+		"    /         - Filter files",
 		"",
 		"  Other:",
 		"    r         - Refresh",

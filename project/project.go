@@ -396,6 +396,33 @@ func (p *Project) decryptRegularFile(encPath, decPath, identity string) error {
 	return os.WriteFile(decPath, plaintext, 0600)
 }
 
+// EncryptEnvFile encrypts a .env file preserving its format (exported wrapper)
+func (p *Project) EncryptEnvFile(filePath string, recipientKeys []string) error {
+	return p.encryptEnvFile(filePath, recipientKeys)
+}
+
+// EncryptRegularFile encrypts a regular file (exported wrapper)
+func (p *Project) EncryptRegularFile(filePath string, recipientKeys []string) error {
+	return p.encryptRegularFile(filePath, recipientKeys)
+}
+
+// DecryptFile decrypts a single encrypted file to the specified output path
+func (p *Project) DecryptFile(encPath, decPath string) error {
+	// Load user's identity
+	identity, err := keygen.LoadAgeIdentity()
+	if err != nil {
+		return fmt.Errorf("no Age identity found. Generate with 'podx keygen -t age'")
+	}
+
+	baseName := filepath.Base(decPath)
+
+	// Check if it's a .env file
+	if strings.HasPrefix(baseName, ".env") || strings.HasSuffix(baseName, ".env") {
+		return p.decryptEnvFile(encPath, decPath, identity)
+	}
+	return p.decryptRegularFile(encPath, decPath, identity)
+}
+
 // UpdateGitignore adds decrypted secret patterns to .gitignore
 func (p *Project) UpdateGitignore() error {
 	gitignorePath := filepath.Join(p.RootDir, ".gitignore")
