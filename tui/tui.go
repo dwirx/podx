@@ -184,9 +184,9 @@ func (m Model) View() string {
 		return "Loading..."
 	}
 
-	// If a fullscreen dialog is active, render only the dialog
+	// If a fullscreen dialog is active, render only the dialog with full terminal dimensions
 	if m.hasFullscreenDialog() {
-		return m.renderContent()
+		return m.renderFullscreenDialog()
 	}
 
 	var s strings.Builder
@@ -213,6 +213,36 @@ func (m Model) View() string {
 	s.WriteString(m.renderStatusBar())
 
 	return s.String()
+}
+
+// renderFullscreenDialog renders fullscreen dialogs with proper terminal dimensions
+func (m Model) renderFullscreenDialog() string {
+	var dialog string
+
+	// Check Commands tab dialogs
+	if m.activeTab == TabCommands {
+		if m.commands.formDialog != nil && m.commands.formDialog.IsVisible() {
+			dialog = m.commands.formDialog.View()
+		} else if m.commands.confirmDialog != nil && m.commands.confirmDialog.IsVisible() {
+			dialog = m.commands.confirmDialog.View()
+		} else if m.commands.progressView != nil && m.commands.progressView.IsVisible() {
+			dialog = m.commands.progressView.View()
+		}
+	}
+
+	// Check Files tab encrypt dialog
+	if m.activeTab == TabFiles {
+		if m.files.encryptDialog.IsVisible() {
+			dialog = m.files.encryptDialog.View()
+		}
+	}
+
+	if dialog == "" {
+		return m.renderContent()
+	}
+
+	// Use full terminal dimensions for centering
+	return CenterDialog(dialog, m.width, m.height)
 }
 
 // renderHeader renders the header section
