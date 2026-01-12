@@ -71,3 +71,34 @@ func TestShouldSkipPath(t *testing.T) {
 		})
 	}
 }
+
+func TestScanDirectory(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create a file with a secret
+	os.WriteFile(filepath.Join(tmpDir, "config.js"), []byte(`password = "secret123"`), 0644)
+
+	// Create a safe file
+	os.WriteFile(filepath.Join(tmpDir, "readme.txt"), []byte("Hello world"), 0644)
+
+	// Create a file in node_modules (should be skipped)
+	os.MkdirAll(filepath.Join(tmpDir, "node_modules", "pkg"), 0755)
+	os.WriteFile(filepath.Join(tmpDir, "node_modules", "pkg", "index.js"), []byte(`password = "npm_secret"`), 0644)
+
+	// Create a .podx file (should be skipped)
+	os.WriteFile(filepath.Join(tmpDir, ".env.podx"), []byte(`password = "encrypted"`), 0644)
+
+	results, err := ScanDirectory(tmpDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Should only find the config.js file
+	if len(results) != 1 {
+		t.Errorf("ScanDirectory() found %d files with secrets, want 1", len(results))
+	}
+
+	if len(results) > 0 && results[0].Path != "config.js" {
+		t.Errorf("ScanDirectory() found %s, want config.js", results[0].Path)
+	}
+}
