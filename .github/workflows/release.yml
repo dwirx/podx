@@ -15,7 +15,23 @@ permissions:
   contents: write
 
 jobs:
+  test:
+    name: Test before release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Run tests
+        run: go test -v -race ./...
+
   build:
+    name: Build
+    needs: test
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -26,6 +42,9 @@ jobs:
           - goos: linux
             goarch: arm64
             suffix: linux-arm64
+          - goos: linux
+            goarch: arm
+            suffix: linux-arm
           - goos: darwin
             goarch: amd64
             suffix: darwin-amd64
@@ -35,6 +54,9 @@ jobs:
           - goos: windows
             goarch: amd64
             suffix: windows-amd64.exe
+          - goos: windows
+            goarch: arm64
+            suffix: windows-arm64.exe
 
     steps:
       - uses: actions/checkout@v4
@@ -42,7 +64,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21'
+          go-version: '1.22'
 
       - name: Get version
         id: version
@@ -61,16 +83,32 @@ jobs:
         run: |
           VERSION=${{ steps.version.outputs.VERSION }}
           BUILD_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          LDFLAGS="-s -w -X main.Version=${VERSION} -X main.BuildTime=${BUILD_TIME}"
+          COMMIT="${GITHUB_SHA:0:7}"
+          LDFLAGS="-s -w -X main.Version=${VERSION} -X main.BuildTime=${BUILD_TIME} -X main.Commit=${COMMIT}"
           go build -ldflags "${LDFLAGS}" -o podx-${{ matrix.suffix }} .
+
+      - name: Compress binary (Linux/macOS)
+        if: matrix.goos != 'windows'
+        run: |
+          chmod +x podx-${{ matrix.suffix }}
+          tar -czvf podx-${{ matrix.suffix }}.tar.gz podx-${{ matrix.suffix }}
+
+      - name: Compress binary (Windows)
+        if: matrix.goos == 'windows'
+        run: |
+          zip podx-${{ matrix.suffix }}.zip podx-${{ matrix.suffix }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: podx-${{ matrix.suffix }}
-          path: podx-${{ matrix.suffix }}
+          path: |
+            podx-${{ matrix.suffix }}
+            podx-${{ matrix.suffix }}.tar.gz
+            podx-${{ matrix.suffix }}.zip
 
   release:
+    name: Create Release
     needs: build
     runs-on: ubuntu-latest
     steps:
@@ -94,10 +132,26 @@ jobs:
         run: |
           mkdir -p release
           for dir in dist/*/; do
-            cp "$dir"* release/
+            cp "$dir"* release/ 2>/dev/null || true
           done
           cd release
-          sha256sum * > checksums.txt
+          # Remove .tar.gz and .zip from checksum (they contain the binary)
+          sha256sum podx-* | grep -v ".tar.gz" | grep -v ".zip" > checksums.txt
+          cat checksums.txt
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Get commits since last tag
+          LAST_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -n "$LAST_TAG" ]; then
+            echo "CHANGES<<EOF" >> $GITHUB_OUTPUT
+            git log --pretty=format:"- %s" "$LAST_TAG"..HEAD >> $GITHUB_OUTPUT
+            echo "" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "CHANGES=Initial release" >> $GITHUB_OUTPUT
+          fi
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
@@ -105,29 +159,80 @@ jobs:
           tag_name: ${{ steps.version.outputs.VERSION }}
           name: PODX ${{ steps.version.outputs.VERSION }}
           body: |
-            ## Installation
+            ## 🔐 PODX ${{ steps.version.outputs.VERSION }}
 
-            ### Linux / macOS (one-liner)
+            ### Installation
+
+            #### Linux / macOS (One-liner)
             ```bash
             curl -fsSL https://raw.githubusercontent.com/dwirx/podx/main/install.sh | bash
             ```
 
-            ### Windows (PowerShell as Admin)
+            #### Windows (PowerShell as Admin)
             ```powershell
             iwr -useb https://raw.githubusercontent.com/dwirx/podx/main/install.ps1 | iex
             ```
 
-            ### Manual Download
-            - Linux AMD64: `podx-linux-amd64`
-            - Linux ARM64: `podx-linux-arm64`
-            - macOS Intel: `podx-darwin-amd64`
-            - macOS Apple Silicon: `podx-darwin-arm64`
-            - Windows: `podx-windows-amd64.exe`
+            #### Homebrew (macOS/Linux)
+            ```bash
+            brew install dwirx/tap/podx
+            ```
 
-            ### Self-update
+            #### Manual Download
+
+            | Platform | Binary | Archive |
+            |----------|--------|---------|
+            | Linux AMD64 | `podx-linux-amd64` | `podx-linux-amd64.tar.gz` |
+            | Linux ARM64 | `podx-linux-arm64` | `podx-linux-arm64.tar.gz` |
+            | Linux ARM | `podx-linux-arm` | `podx-linux-arm.tar.gz` |
+            | macOS Intel | `podx-darwin-amd64` | `podx-darwin-amd64.tar.gz` |
+            | macOS Apple Silicon | `podx-darwin-arm64` | `podx-darwin-arm64.tar.gz` |
+            | Windows AMD64 | `podx-windows-amd64.exe` | `podx-windows-amd64.exe.zip` |
+            | Windows ARM64 | `podx-windows-arm64.exe` | `podx-windows-arm64.exe.zip` |
+
+            ### Self-Update
             ```bash
             podx update
             ```
+
+            ---
+
+            ### What's New
+
+            ${{ steps.changelog.outputs.CHANGES }}
+
+            ---
+
+            ### Checksums
+
+            Verify your download with SHA256:
+            ```
+            sha256sum -c checksums.txt
+            ```
+
           files: release/*
           draft: false
           prerelease: false
+
+  notify:
+    name: Notify
+    needs: release
+    runs-on: ubuntu-latest
+    if: success()
+    steps:
+      - name: Get version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create summary
+        run: |
+          echo "## 🎉 Release Created!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${{ steps.version.outputs.VERSION }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Release URL:** https://github.com/${{ github.repository }}/releases/tag/${{ steps.version.outputs.VERSION }}" >> $GITHUB_STEP_SUMMARY
