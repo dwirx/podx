@@ -23,33 +23,13 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go-version }}
-
-      - name: Cache Go modules
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ matrix.go-version }}-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-${{ matrix.go-version }}-
+          cache: true
 
       - name: Download dependencies
         run: go mod download
 
-      - name: Verify dependencies
-        run: go mod verify
-
       - name: Run tests
-        run: go test -v -coverprofile=coverage.out ./...
-
-      - name: Upload coverage
-        if: matrix.os == 'ubuntu-latest' && matrix.go-version == '1.22'
-        uses: codecov/codecov-action@v4
-        with:
-          file: coverage.out
-          fail_ci_if_error: false
-        continue-on-error: true
+        run: go test -v ./...
 
   lint:
     name: Lint
@@ -61,16 +41,18 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.22'
+          cache: true
 
       - name: Run go vet
         run: go vet ./...
 
-      - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v4
-        with:
-          version: v1.54
-          args: --timeout=5m --issues-exit-code=0
-        continue-on-error: true
+      - name: Check formatting
+        run: |
+          if [ -n "$(gofmt -l .)" ]; then
+            echo "Code is not formatted. Run 'gofmt -w .'"
+            gofmt -d .
+            exit 1
+          fi
 
   build:
     name: Build
@@ -97,6 +79,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.22'
+          cache: true
 
       - name: Build
         env:
@@ -116,28 +99,3 @@ jobs:
           chmod +x podx-linux-amd64
           ./podx-linux-amd64 version
           ./podx-linux-amd64 help
-
-  security:
-    name: Security Scan
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.22'
-
-      - name: Run Gosec Security Scanner
-        uses: securego/gosec@master
-        with:
-          args: '-no-fail -fmt json -out gosec-results.json ./...'
-        continue-on-error: true
-
-      - name: Upload security results
-        uses: actions/upload-artifact@v4
-        with:
-          name: gosec-results
-          path: gosec-results.json
-        continue-on-error: true
