@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/hades/podx/project"
 	"github.com/hades/podx/security"
+	"github.com/hades/podx/updater"
 )
 
 // Action identifiers
@@ -24,6 +25,7 @@ const (
 type DashboardModel struct {
 	project     *project.Project
 	checkResult *security.CheckResult
+	updateInfo  *updater.UpdateInfo
 	loading     bool
 	err         error
 	selected    int
@@ -32,6 +34,7 @@ type DashboardModel struct {
 	height      int
 	cwd         string
 	keys        KeyMap
+	version     string
 }
 
 // projectLoadedMsg is sent when project loading completes
@@ -43,6 +46,11 @@ type projectLoadedMsg struct {
 // checkCompletedMsg is sent when security check completes
 type checkCompletedMsg struct {
 	result *security.CheckResult
+}
+
+// updateCheckMsg is sent when update check completes
+type updateCheckMsg struct {
+	info *updater.UpdateInfo
 }
 
 // actionResultMsg is sent when an action completes
@@ -66,12 +74,24 @@ func NewDashboardModel() DashboardModel {
 		selected: 0,
 		cwd:      cwd,
 		keys:     DefaultKeyMap(),
+		version:  "1.0.0", // Default version, will be set by TUI
 	}
+}
+
+// SetVersion sets the current version for update checking
+func (m *DashboardModel) SetVersion(version string) {
+	m.version = version
 }
 
 // Init initializes the dashboard model
 func (m DashboardModel) Init() tea.Cmd {
-	return m.loadProject
+	return tea.Batch(m.loadProject, m.checkForUpdates)
+}
+
+// checkForUpdates checks for available updates in background
+func (m DashboardModel) checkForUpdates() tea.Msg {
+	info := updater.CheckUpdate(m.version)
+	return updateCheckMsg{info: info}
 }
 
 // loadProject loads the project configuration
@@ -145,6 +165,10 @@ func (m DashboardModel) Update(msg tea.Msg) (DashboardModel, tea.Cmd) {
 		m.checkResult = msg.result
 		return m, nil
 
+	case updateCheckMsg:
+		m.updateInfo = msg.info
+		return m, nil
+
 	case actionResultMsg:
 		// Could update status message here if needed
 		// For now, just trigger a reload
@@ -208,17 +232,46 @@ func (m DashboardModel) renderNoProject() string {
 
 // renderDashboard renders the full dashboard view
 func (m DashboardModel) renderDashboard() string {
+	var sections []string
+
+	// Update notification at top if available
+	if m.updateInfo != nil && m.updateInfo.Available {
+		updateCard := m.renderUpdateNotification()
+		sections = append(sections, updateCard)
+	}
+
 	// Create horizontal layout with project info and security status side by side
 	projectCard := m.renderProjectInfo()
 	securityCard := m.renderSecurityStatus()
 
 	// Join cards horizontally if there's enough width
 	topRow := lipgloss.JoinHorizontal(lipgloss.Top, projectCard, securityCard)
+	sections = append(sections, topRow)
 
 	// Quick actions below
 	actionsCard := m.renderQuickActions()
+	sections = append(sections, actionsCard)
 
-	return lipgloss.JoinVertical(lipgloss.Left, topRow, actionsCard)
+	return lipgloss.JoinVertical(lipgloss.Left, sections...)
+}
+
+// renderUpdateNotification renders the update notification banner
+func (m DashboardModel) renderUpdateNotification() string {
+	var lines []string
+
+	lines = append(lines, WarningStyle.Render("[!] Update Available"))
+	lines = append(lines, "")
+	lines = append(lines, fmt.Sprintf("  New version: %s → %s", m.updateInfo.CurrentVersion, m.updateInfo.LatestVersion))
+	if m.updateInfo.DownloadSize > 0 {
+		lines = append(lines, fmt.Sprintf("  Size: %s", updater.FormatSize(m.updateInfo.DownloadSize)))
+	}
+	if m.updateInfo.IsBeta {
+		lines = append(lines, WarningStyle.Render("  This is a beta release"))
+	}
+	lines = append(lines, "")
+	lines = append(lines, MutedStyle.Render("  Run 'podx update' to upgrade"))
+
+	return CardStyle.Render(strings.Join(lines, "\n"))
 }
 
 // renderProjectInfo renders project information

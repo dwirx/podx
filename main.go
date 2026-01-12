@@ -83,7 +83,9 @@ func main() {
 	case "keygen":
 		handleKeygen(os.Args[2:])
 	case "update":
-		handleUpdate()
+		handleUpdate(os.Args[2:])
+	case "rollback":
+		handleRollback()
 	case "version", "-v", "--version":
 		printVersion()
 	case "help", "-h", "--help":
@@ -114,7 +116,8 @@ FILE COMMANDS:
 OTHER:
   check      Check for unencrypted secrets
   hook       Manage pre-commit hook
-  update     Self-update to latest version
+  update     Self-update to latest version (--beta for beta)
+  rollback   Rollback to previous version after update
   version    Show version info
 
 USAGE:
@@ -576,15 +579,30 @@ func printVersion() {
 	fmt.Printf("Build time: %s\n", BuildTime)
 	fmt.Printf("Platform: %s/%s\n", runtime.GOOS, runtime.GOARCH)
 
-	// Check for updates in background
-	if newVersion, available := updater.CheckUpdate(Version); available {
-		fmt.Printf("\n📦 New version available: %s\n", newVersion)
+	// Check for updates
+	info := updater.CheckUpdate(Version)
+	if info.Available {
+		fmt.Printf("\n📦 New version available: %s → %s\n", info.CurrentVersion, info.LatestVersion)
+		if info.DownloadSize > 0 {
+			fmt.Printf("   Size: %s\n", updater.FormatSize(info.DownloadSize))
+		}
 		fmt.Println("   Run 'podx update' to upgrade")
 	}
 }
 
-func handleUpdate() {
-	if err := updater.Update(Version); err != nil {
+func handleUpdate(args []string) {
+	fs := flag.NewFlagSet("update", flag.ExitOnError)
+	beta := fs.Bool("beta", false, "Update to beta version")
+	fs.Parse(args)
+
+	if err := updater.Update(Version, *beta); err != nil {
+		fmt.Println("Error:", err)
+		os.Exit(1)
+	}
+}
+
+func handleRollback() {
+	if err := updater.Rollback(); err != nil {
 		fmt.Println("Error:", err)
 		os.Exit(1)
 	}
