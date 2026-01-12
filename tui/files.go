@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -27,20 +28,25 @@ type FileInfo struct {
 
 // FilesModel represents the files tab content
 type FilesModel struct {
-	cwd       string
-	files     []FileInfo
-	selected  int
-	width     int
-	height    int
-	keys      KeyMap
-	loading   bool
-	message   string
-	msgStyle  lipgloss.Style
-	filter    textinput.Model
-	filtering bool
-	err       error
-	offset    int // For scrolling
-	project   *project.Project
+	cwd            string
+	files          []FileInfo
+	selected       int
+	width          int
+	height         int
+	keys           KeyMap
+	loading        bool
+	message        string
+	msgStyle       lipgloss.Style
+	filter         textinput.Model
+	filtering      bool
+	err            error
+	offset         int // For scrolling
+	project        *project.Project
+	showPreview    bool
+	previewContent []string
+	selectedFiles  map[string]bool // for multi-select
+	gotoInput      textinput.Model
+	showGoto       bool
 }
 
 // fileLoadedMsg is sent when file list is loaded
@@ -62,13 +68,21 @@ func NewFilesModel() FilesModel {
 	filter.Placeholder = "Type to filter..."
 	filter.CharLimit = 100
 
+	gotoInput := textinput.New()
+	gotoInput.Placeholder = "Enter path..."
+	gotoInput.CharLimit = 256
+
 	return FilesModel{
-		cwd:      cwd,
-		selected: 0,
-		keys:     DefaultKeyMap(),
-		loading:  true,
-		filter:   filter,
-		msgStyle: SuccessStyle,
+		cwd:           cwd,
+		selected:      0,
+		keys:          DefaultKeyMap(),
+		loading:       true,
+		filter:        filter,
+		msgStyle:      SuccessStyle,
+		showPreview:   true,
+		selectedFiles: make(map[string]bool),
+		gotoInput:     gotoInput,
+		showGoto:      false,
 	}
 }
 
@@ -150,6 +164,7 @@ func (m FilesModel) Update(msg tea.Msg) (FilesModel, tea.Cmd) {
 			m.files = msg.files
 			m.selected = 0
 			m.offset = 0
+			m.updatePreview()
 		}
 		// Load project for encryption operations
 		m.project, _ = project.Load(m.cwd)
@@ -160,6 +175,8 @@ func (m FilesModel) Update(msg tea.Msg) (FilesModel, tea.Cmd) {
 		m.message = msg.message
 		if msg.success {
 			m.msgStyle = SuccessStyle
+			// Clear selections after successful operation
+			m.selectedFiles = make(map[string]bool)
 		} else {
 			m.msgStyle = ErrorStyle
 		}
@@ -167,6 +184,51 @@ func (m FilesModel) Update(msg tea.Msg) (FilesModel, tea.Cmd) {
 		return m, m.loadFiles
 
 	case tea.KeyMsg:
+		// Handle goto input mode
+		if m.showGoto {
+			switch msg.String() {
+			case "esc":
+				m.showGoto = false
+				m.gotoInput.SetValue("")
+				m.gotoInput.Blur()
+				return m, nil
+			case "enter":
+				path := m.gotoInput.Value()
+				if path != "" {
+					// Expand ~ to home directory
+					if strings.HasPrefix(path, "~") {
+						home, _ := os.UserHomeDir()
+						path = filepath.Join(home, path[1:])
+					}
+					// Make path absolute if relative
+					if !filepath.IsAbs(path) {
+						path = filepath.Join(m.cwd, path)
+					}
+					// Check if path exists and is a directory
+					info, err := os.Stat(path)
+					if err == nil && info.IsDir() {
+						m.cwd = path
+						m.loading = true
+						m.showGoto = false
+						m.gotoInput.SetValue("")
+						m.gotoInput.Blur()
+						return m, m.loadFiles
+					} else {
+						m.message = "Invalid directory path"
+						m.msgStyle = ErrorStyle
+					}
+				}
+				m.showGoto = false
+				m.gotoInput.SetValue("")
+				m.gotoInput.Blur()
+				return m, nil
+			default:
+				var cmd tea.Cmd
+				m.gotoInput, cmd = m.gotoInput.Update(msg)
+				return m, cmd
+			}
+		}
+
 		// Handle filter input mode
 		if m.filtering {
 			switch msg.String() {
@@ -192,6 +254,7 @@ func (m FilesModel) Update(msg tea.Msg) (FilesModel, tea.Cmd) {
 			if m.selected > 0 {
 				m.selected--
 				m.ensureVisible()
+				m.updatePreview()
 			}
 			return m, nil
 
@@ -200,6 +263,7 @@ func (m FilesModel) Update(msg tea.Msg) (FilesModel, tea.Cmd) {
 			if m.selected < len(filteredFiles)-1 {
 				m.selected++
 				m.ensureVisible()
+				m.updatePreview()
 			}
 			return m, nil
 
@@ -226,7 +290,7 @@ func (m FilesModel) Update(msg tea.Msg) (FilesModel, tea.Cmd) {
 			}
 			return m, nil
 
-		case msg.String() == "backspace" && !m.filtering:
+		case msg.String() == "backspace" && !m.filtering && !m.showGoto:
 			// Go to parent directory
 			if m.cwd != "/" {
 				m.cwd = filepath.Dir(m.cwd)
@@ -237,11 +301,11 @@ func (m FilesModel) Update(msg tea.Msg) (FilesModel, tea.Cmd) {
 			return m, nil
 
 		case msg.String() == "e":
-			// Encrypt selected file
+			// Encrypt selected file(s)
 			return m, m.encryptSelected()
 
 		case msg.String() == "d":
-			// Decrypt selected file
+			// Decrypt selected file(s)
 			return m, m.decryptSelected()
 
 		case msg.String() == "/":
@@ -249,10 +313,160 @@ func (m FilesModel) Update(msg tea.Msg) (FilesModel, tea.Cmd) {
 			m.filtering = true
 			m.filter.Focus()
 			return m, textinput.Blink
+
+		case msg.String() == "g":
+			// Open goto input
+			m.showGoto = true
+			m.gotoInput.SetValue("")
+			m.gotoInput.Focus()
+			return m, textinput.Blink
+
+		case msg.String() == "p":
+			// Toggle preview panel
+			m.showPreview = !m.showPreview
+			if m.showPreview {
+				m.updatePreview()
+			}
+			return m, nil
+
+		case msg.String() == " ":
+			// Toggle file selection (multi-select)
+			filteredFiles := m.getFilteredFiles()
+			if m.selected < len(filteredFiles) {
+				file := filteredFiles[m.selected]
+				if !file.IsDir && file.Name != ".." {
+					if m.selectedFiles[file.Path] {
+						delete(m.selectedFiles, file.Path)
+					} else {
+						m.selectedFiles[file.Path] = true
+					}
+				}
+			}
+			return m, nil
+
+		case msg.String() == "a":
+			// Select/deselect all files
+			filteredFiles := m.getFilteredFiles()
+			allSelected := true
+			for _, file := range filteredFiles {
+				if !file.IsDir && file.Name != ".." && !m.selectedFiles[file.Path] {
+					allSelected = false
+					break
+				}
+			}
+			if allSelected {
+				// Deselect all
+				m.selectedFiles = make(map[string]bool)
+			} else {
+				// Select all files (not directories)
+				for _, file := range filteredFiles {
+					if !file.IsDir && file.Name != ".." {
+						m.selectedFiles[file.Path] = true
+					}
+				}
+			}
+			return m, nil
+
+		case msg.String() == "r":
+			// Refresh file list
+			m.loading = true
+			return m, m.loadFiles
 		}
 	}
 
 	return m, nil
+}
+
+// updatePreview loads preview content for the selected file
+func (m *FilesModel) updatePreview() {
+	m.previewContent = nil
+
+	filteredFiles := m.getFilteredFiles()
+	if m.selected >= len(filteredFiles) {
+		return
+	}
+
+	file := filteredFiles[m.selected]
+	if file.IsDir || file.Name == ".." {
+		m.previewContent = []string{"[Directory]"}
+		return
+	}
+
+	// Check file size - don't preview large files
+	if file.Size > 1024*1024 { // 1MB limit
+		m.previewContent = []string{
+			"[Large file - preview disabled]",
+			"",
+			fmt.Sprintf("Size: %s", formatSize(file.Size)),
+			fmt.Sprintf("Modified: %s", file.ModTime.Format("2006-01-02 15:04")),
+		}
+		return
+	}
+
+	// Check if it's a binary file by extension
+	ext := strings.ToLower(filepath.Ext(file.Name))
+	binaryExts := map[string]bool{
+		".exe": true, ".bin": true, ".so": true, ".dylib": true,
+		".png": true, ".jpg": true, ".jpeg": true, ".gif": true, ".bmp": true, ".ico": true,
+		".mp3": true, ".mp4": true, ".avi": true, ".mov": true, ".mkv": true,
+		".zip": true, ".tar": true, ".gz": true, ".7z": true, ".rar": true,
+		".pdf": true, ".doc": true, ".docx": true, ".xls": true, ".xlsx": true,
+	}
+	if binaryExts[ext] {
+		m.previewContent = []string{
+			"[Binary file]",
+			"",
+			fmt.Sprintf("Type: %s", getFileTypeDescription(ext)),
+			fmt.Sprintf("Size: %s", formatSize(file.Size)),
+			fmt.Sprintf("Modified: %s", file.ModTime.Format("2006-01-02 15:04")),
+		}
+		return
+	}
+
+	// Read first 10 lines of the file
+	f, err := os.Open(file.Path)
+	if err != nil {
+		m.previewContent = []string{"[Cannot read file]", err.Error()}
+		return
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	lineCount := 0
+	maxLines := 15
+	for scanner.Scan() && lineCount < maxLines {
+		line := scanner.Text()
+		// Truncate long lines
+		if len(line) > 40 {
+			line = line[:37] + "..."
+		}
+		m.previewContent = append(m.previewContent, line)
+		lineCount++
+	}
+
+	if lineCount == maxLines {
+		m.previewContent = append(m.previewContent, "...")
+	}
+}
+
+// getFileTypeDescription returns a human-readable description for file types
+func getFileTypeDescription(ext string) string {
+	types := map[string]string{
+		".png": "PNG Image", ".jpg": "JPEG Image", ".jpeg": "JPEG Image",
+		".gif": "GIF Image", ".bmp": "Bitmap Image", ".ico": "Icon",
+		".mp3": "MP3 Audio", ".mp4": "MP4 Video", ".avi": "AVI Video",
+		".mov": "QuickTime Video", ".mkv": "MKV Video",
+		".zip": "ZIP Archive", ".tar": "TAR Archive", ".gz": "GZip Archive",
+		".7z": "7-Zip Archive", ".rar": "RAR Archive",
+		".pdf": "PDF Document", ".doc": "Word Document", ".docx": "Word Document",
+		".xls": "Excel Spreadsheet", ".xlsx": "Excel Spreadsheet",
+		".exe": "Executable", ".bin": "Binary", ".so": "Shared Library",
+		".dylib": "Dynamic Library",
+	}
+	if desc, ok := types[ext]; ok {
+		return desc
+	}
+	return "Binary file"
 }
 
 // ensureVisible adjusts the scroll offset to keep the selected item visible
@@ -272,7 +486,7 @@ func (m *FilesModel) ensureVisible() {
 // getVisibleHeight returns the number of visible file rows
 func (m *FilesModel) getVisibleHeight() int {
 	// Account for header, separator, footer, and some padding
-	return m.height - 6
+	return m.height - 8
 }
 
 // getFilteredFiles returns files matching the current filter
@@ -291,20 +505,43 @@ func (m FilesModel) getFilteredFiles() []FileInfo {
 	return filtered
 }
 
-// encryptSelected encrypts the currently selected file
+// getSelectedCount returns the number of selected files
+func (m FilesModel) getSelectedCount() int {
+	return len(m.selectedFiles)
+}
+
+// getFilesToOperate returns files to encrypt/decrypt (selected files or current file)
+func (m FilesModel) getFilesToOperate() []FileInfo {
+	if len(m.selectedFiles) > 0 {
+		var files []FileInfo
+		for path := range m.selectedFiles {
+			for _, f := range m.files {
+				if f.Path == path {
+					files = append(files, f)
+					break
+				}
+			}
+		}
+		return files
+	}
+
+	// Fall back to currently selected file
+	filteredFiles := m.getFilteredFiles()
+	if m.selected < len(filteredFiles) {
+		file := filteredFiles[m.selected]
+		if !file.IsDir && file.Name != ".." {
+			return []FileInfo{file}
+		}
+	}
+	return nil
+}
+
+// encryptSelected encrypts the currently selected file(s)
 func (m FilesModel) encryptSelected() tea.Cmd {
 	return func() tea.Msg {
-		filteredFiles := m.getFilteredFiles()
-		if m.selected >= len(filteredFiles) {
+		files := m.getFilesToOperate()
+		if len(files) == 0 {
 			return fileOperationMsg{success: false, message: "No file selected"}
-		}
-
-		file := filteredFiles[m.selected]
-		if file.IsDir || file.Name == ".." {
-			return fileOperationMsg{success: false, message: "Cannot encrypt a directory"}
-		}
-		if file.IsEncrypted {
-			return fileOperationMsg{success: false, message: "File is already encrypted"}
 		}
 
 		if m.project == nil {
@@ -321,60 +558,91 @@ func (m FilesModel) encryptSelected() tea.Cmd {
 			recipientKeys = append(recipientKeys, r.Key)
 		}
 
-		// Encrypt based on file type
-		baseName := filepath.Base(file.Path)
-		var err error
-		if strings.HasPrefix(baseName, ".env") || strings.HasSuffix(baseName, ".env") {
-			err = m.project.EncryptEnvFile(file.Path, recipientKeys)
-		} else {
-			err = m.project.EncryptRegularFile(file.Path, recipientKeys)
-		}
+		successCount := 0
+		var lastErr error
 
-		if err != nil {
-			return fileOperationMsg{success: false, message: fmt.Sprintf("Encryption failed: %v", err)}
-		}
-
-		// Delete original file after successful encryption
-		if err := os.Remove(file.Path); err != nil {
-			return fileOperationMsg{
-				success: true,
-				message: fmt.Sprintf("Encrypted %s (could not delete original: %v)", file.Name, err),
+		for _, file := range files {
+			if file.IsDir || file.Name == ".." {
+				continue
 			}
+			if file.IsEncrypted {
+				continue
+			}
+
+			// Encrypt based on file type
+			baseName := filepath.Base(file.Path)
+			var err error
+			if strings.HasPrefix(baseName, ".env") || strings.HasSuffix(baseName, ".env") {
+				err = m.project.EncryptEnvFile(file.Path, recipientKeys)
+			} else {
+				err = m.project.EncryptRegularFile(file.Path, recipientKeys)
+			}
+
+			if err != nil {
+				lastErr = err
+				continue
+			}
+
+			// Delete original file after successful encryption
+			if err := os.Remove(file.Path); err != nil {
+				lastErr = err
+			}
+			successCount++
 		}
 
-		return fileOperationMsg{success: true, message: fmt.Sprintf("Encrypted %s", file.Name)}
+		if successCount == 0 && lastErr != nil {
+			return fileOperationMsg{success: false, message: fmt.Sprintf("Encryption failed: %v", lastErr)}
+		}
+
+		if successCount == 1 {
+			return fileOperationMsg{success: true, message: fmt.Sprintf("Encrypted %d file", successCount)}
+		}
+		return fileOperationMsg{success: true, message: fmt.Sprintf("Encrypted %d files", successCount)}
 	}
 }
 
-// decryptSelected decrypts the currently selected file
+// decryptSelected decrypts the currently selected file(s)
 func (m FilesModel) decryptSelected() tea.Cmd {
 	return func() tea.Msg {
-		filteredFiles := m.getFilteredFiles()
-		if m.selected >= len(filteredFiles) {
+		files := m.getFilesToOperate()
+		if len(files) == 0 {
 			return fileOperationMsg{success: false, message: "No file selected"}
-		}
-
-		file := filteredFiles[m.selected]
-		if file.IsDir || file.Name == ".." {
-			return fileOperationMsg{success: false, message: "Cannot decrypt a directory"}
-		}
-		if !file.IsEncrypted {
-			return fileOperationMsg{success: false, message: "File is not encrypted (.podx)"}
 		}
 
 		if m.project == nil {
 			return fileOperationMsg{success: false, message: "No PODX project found"}
 		}
 
-		// Decrypt the file
-		decPath := strings.TrimSuffix(file.Path, ".podx")
-		err := m.project.DecryptFile(file.Path, decPath)
+		successCount := 0
+		var lastErr error
 
-		if err != nil {
-			return fileOperationMsg{success: false, message: fmt.Sprintf("Decryption failed: %v", err)}
+		for _, file := range files {
+			if file.IsDir || file.Name == ".." {
+				continue
+			}
+			if !file.IsEncrypted {
+				continue
+			}
+
+			// Decrypt the file
+			decPath := strings.TrimSuffix(file.Path, ".podx")
+			err := m.project.DecryptFile(file.Path, decPath)
+
+			if err != nil {
+				lastErr = err
+				continue
+			}
+			successCount++
 		}
 
-		return fileOperationMsg{success: true, message: fmt.Sprintf("Decrypted %s", file.Name)}
+		if successCount == 0 && lastErr != nil {
+			return fileOperationMsg{success: false, message: fmt.Sprintf("Decryption failed: %v", lastErr)}
+		}
+
+		if successCount == 1 {
+			return fileOperationMsg{success: true, message: fmt.Sprintf("Decrypted %d file", successCount)}
+		}
+		return fileOperationMsg{success: true, message: fmt.Sprintf("Decrypted %d files", successCount)}
 	}
 }
 
@@ -391,22 +659,167 @@ func (m FilesModel) View() string {
 	return m.renderFileBrowser()
 }
 
+// getFileIcon returns an appropriate icon for the file type
+func getFileIcon(file FileInfo) string {
+	if file.Name == ".." {
+		return "\U0001F4C2" // Open folder
+	}
+	if file.IsDir {
+		return "\U0001F4C1" // Closed folder
+	}
+	if file.IsEncrypted {
+		return "\U0001F512" // Lock
+	}
+
+	ext := strings.ToLower(filepath.Ext(file.Name))
+	switch ext {
+	case ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".ico", ".svg", ".webp":
+		return "\U0001F5BC" // Image (framed picture)
+	case ".zip", ".tar", ".gz", ".7z", ".rar", ".bz2", ".xz":
+		return "\U0001F4E6" // Package
+	case ".go", ".py", ".js", ".ts", ".rs", ".c", ".cpp", ".java", ".rb":
+		return "\U0001F4DD" // Code memo
+	case ".md", ".txt", ".doc", ".docx", ".pdf":
+		return "\U0001F4C3" // Document
+	case ".json", ".yaml", ".yml", ".toml", ".xml", ".ini", ".conf":
+		return "\U00002699" // Gear (config)
+	case ".mp3", ".wav", ".ogg", ".flac":
+		return "\U0001F3B5" // Music note
+	case ".mp4", ".avi", ".mov", ".mkv", ".webm":
+		return "\U0001F3AC" // Clapper board
+	case ".sh", ".bash", ".zsh", ".fish":
+		return "\U0001F4BB" // Computer
+	default:
+		return "\U0001F4C4" // Generic document
+	}
+}
+
+// getFileColor returns a color for the file type
+func getFileColor(file FileInfo) lipgloss.Color {
+	if file.IsDir {
+		return ColorPrimary
+	}
+	if file.IsEncrypted {
+		return ColorWarning
+	}
+
+	ext := strings.ToLower(filepath.Ext(file.Name))
+	switch ext {
+	case ".go":
+		return lipgloss.Color("#00ADD8") // Go blue
+	case ".py":
+		return lipgloss.Color("#3776AB") // Python blue
+	case ".js", ".ts":
+		return lipgloss.Color("#F7DF1E") // JS yellow
+	case ".rs":
+		return lipgloss.Color("#DEA584") // Rust orange
+	case ".md", ".txt":
+		return ColorWhite
+	case ".json", ".yaml", ".yml", ".toml":
+		return ColorSuccess
+	case ".png", ".jpg", ".jpeg", ".gif":
+		return lipgloss.Color("#FF69B4") // Pink
+	default:
+		return ColorWhite
+	}
+}
+
+// renderBreadcrumbs renders the path as breadcrumbs
+func (m FilesModel) renderBreadcrumbs() string {
+	parts := strings.Split(m.cwd, string(filepath.Separator))
+	var crumbs []string
+
+	crumbs = append(crumbs, MutedStyle.Render("/"))
+	for i, part := range parts {
+		if part == "" {
+			continue
+		}
+		if i == len(parts)-1 {
+			// Current directory - highlight it
+			crumbs = append(crumbs, TitleStyle.Render(part))
+		} else {
+			crumbs = append(crumbs, MutedStyle.Render(part))
+		}
+		if i < len(parts)-1 {
+			crumbs = append(crumbs, MutedStyle.Render("/"))
+		}
+	}
+
+	return strings.Join(crumbs, "")
+}
+
 // renderFileBrowser renders the full file browser view
 func (m FilesModel) renderFileBrowser() string {
+	// Calculate widths
+	totalWidth := m.width - 6 // Account for borders and padding
+	if totalWidth < 60 {
+		totalWidth = 60
+	}
+
+	var fileListWidth int
+	var previewWidth int
+	if m.showPreview {
+		fileListWidth = (totalWidth * 60) / 100
+		previewWidth = totalWidth - fileListWidth - 3 // Account for separator
+	} else {
+		fileListWidth = totalWidth
+		previewWidth = 0
+	}
+
+	// Build the file list panel
+	filePanel := m.renderFileListPanel(fileListWidth)
+
+	// Build the preview panel if enabled
+	var previewPanel string
+	if m.showPreview {
+		previewPanel = m.renderPreviewPanel(previewWidth)
+	}
+
+	// Combine panels
+	var mainContent string
+	if m.showPreview && previewWidth > 10 {
+		mainContent = lipgloss.JoinHorizontal(
+			lipgloss.Top,
+			filePanel,
+			MutedStyle.Render(" \u2502 "), // Vertical separator
+			previewPanel,
+		)
+	} else {
+		mainContent = filePanel
+	}
+
+	return BoxStyle.Render(mainContent)
+}
+
+// renderFileListPanel renders the file list panel
+func (m FilesModel) renderFileListPanel(width int) string {
 	var lines []string
 
-	// Header with current path
-	headerIcon := lipgloss.NewStyle().SetString("\U0001F4C1").String() // 📁
-	header := TitleStyle.Render(fmt.Sprintf("%s Files: %s", headerIcon, m.cwd))
+	// Header with breadcrumb path
+	pathIcon := "\U0001F4C1" // Folder
+	header := TitleStyle.Render(fmt.Sprintf("%s %s", pathIcon, m.renderBreadcrumbs()))
 	lines = append(lines, header)
 
 	// Separator
-	separator := strings.Repeat("\u2501", min(m.width-4, 60)) // ━
+	separator := strings.Repeat("\u2500", min(width-4, 50))
 	lines = append(lines, MutedStyle.Render(separator))
+
+	// Goto input if active
+	if m.showGoto {
+		gotoLabel := TitleStyle.Render("Go to: ")
+		lines = append(lines, gotoLabel+m.gotoInput.View())
+		lines = append(lines, "")
+	}
 
 	// Filter input if active
 	if m.filtering {
 		lines = append(lines, fmt.Sprintf("Filter: %s", m.filter.View()))
+	}
+
+	// Selection count if files are selected
+	if count := m.getSelectedCount(); count > 0 {
+		selectionInfo := WarningStyle.Render(fmt.Sprintf("[%d selected]", count))
+		lines = append(lines, selectionInfo)
 	}
 
 	// File list
@@ -423,12 +836,12 @@ func (m FilesModel) renderFileBrowser() string {
 
 	for i := m.offset; i < endIdx; i++ {
 		file := filteredFiles[i]
-		line := m.renderFileLine(file, i == m.selected)
+		line := m.renderFileLine(file, i == m.selected, width)
 		lines = append(lines, line)
 	}
 
 	// Pad with empty lines if needed
-	for i := len(filteredFiles); i < visibleHeight; i++ {
+	for i := len(filteredFiles); i < visibleHeight && i-m.offset < visibleHeight; i++ {
 		lines = append(lines, "")
 	}
 
@@ -441,36 +854,65 @@ func (m FilesModel) renderFileBrowser() string {
 	}
 
 	// Footer with keybindings
-	footer := MutedStyle.Render("[e] Encrypt  [d] Decrypt  [/] Filter  [h] Back  [Enter] Open")
+	footer := MutedStyle.Render("[j/k] Nav  [Enter] Open  [e] Encrypt  [d] Decrypt  [g] Go to  [/] Filter  [Space] Select  [p] Preview  [q] Back")
 	lines = append(lines, footer)
 
-	return BoxStyle.Render(strings.Join(lines, "\n"))
+	return strings.Join(lines, "\n")
+}
+
+// renderPreviewPanel renders the preview panel
+func (m FilesModel) renderPreviewPanel(width int) string {
+	var lines []string
+
+	// Preview header
+	header := CardTitleStyle.Render("Preview")
+	lines = append(lines, header)
+
+	// Separator
+	separator := strings.Repeat("\u2500", min(width-2, 40))
+	lines = append(lines, MutedStyle.Render(separator))
+
+	// Preview content
+	if len(m.previewContent) == 0 {
+		lines = append(lines, MutedStyle.Render("[Select a file to preview]"))
+	} else {
+		for _, line := range m.previewContent {
+			// Truncate lines if too long
+			if len(line) > width-2 {
+				line = line[:width-5] + "..."
+			}
+			lines = append(lines, line)
+		}
+	}
+
+	// Pad to fill height
+	visibleHeight := m.getVisibleHeight() + 3
+	for len(lines) < visibleHeight {
+		lines = append(lines, "")
+	}
+
+	return strings.Join(lines, "\n")
 }
 
 // renderFileLine renders a single file line
-func (m FilesModel) renderFileLine(file FileInfo, selected bool) string {
-	var icon string
-	var sizeStr string
+func (m FilesModel) renderFileLine(file FileInfo, selected bool, maxWidth int) string {
+	icon := getFileIcon(file)
+	fileColor := getFileColor(file)
 
+	var sizeStr string
 	if file.Name == ".." {
-		icon = "\U0001F4C1" // 📁
 		sizeStr = ""
 	} else if file.IsDir {
-		icon = "\U0001F4C1" // 📁
 		sizeStr = "<DIR>"
-	} else if file.IsEncrypted {
-		icon = "\U0001F510" // 🔐
-		sizeStr = formatSize(file.Size)
 	} else {
-		icon = "\U0001F4C4" // 📄
 		sizeStr = formatSize(file.Size)
 	}
 
 	// Truncate name if too long
 	name := file.Name
-	maxNameLen := m.width - 30
-	if maxNameLen < 20 {
-		maxNameLen = 20
+	maxNameLen := maxWidth - 25
+	if maxNameLen < 15 {
+		maxNameLen = 15
 	}
 	if len(name) > maxNameLen {
 		name = name[:maxNameLen-3] + "..."
@@ -481,17 +923,25 @@ func (m FilesModel) renderFileLine(file FileInfo, selected bool) string {
 		name = name + "/"
 	}
 
-	// Format the line
+	// Selection indicator
+	var selectionMark string
+	if m.selectedFiles[file.Path] {
+		selectionMark = "\u2713 " // Checkmark
+	} else {
+		selectionMark = "  "
+	}
+
+	// Cursor indicator
 	prefix := "  "
 	if selected {
 		prefix = "> "
 	}
 
 	// Build line with padding for alignment
-	line := fmt.Sprintf("%s%s %s", prefix, icon, name)
+	line := fmt.Sprintf("%s%s%s %s", prefix, selectionMark, icon, name)
 
 	// Add size aligned to the right
-	padding := m.width - 20 - len(line)
+	padding := maxWidth - 12 - len(line)
 	if padding < 2 {
 		padding = 2
 	}
@@ -500,7 +950,17 @@ func (m FilesModel) renderFileLine(file FileInfo, selected bool) string {
 	if selected {
 		return SelectedStyle.Render(line)
 	}
-	return line
+
+	// Apply file-specific color
+	nameStyle := lipgloss.NewStyle().Foreground(fileColor)
+	if m.selectedFiles[file.Path] {
+		nameStyle = nameStyle.Bold(true)
+	}
+
+	coloredLine := fmt.Sprintf("%s%s%s %s", prefix, selectionMark, icon, nameStyle.Render(name))
+	coloredLine = coloredLine + strings.Repeat(" ", padding) + MutedStyle.Render(sizeStr)
+
+	return coloredLine
 }
 
 // formatSize formats a file size in human-readable format
