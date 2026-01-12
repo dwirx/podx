@@ -15,6 +15,7 @@ import (
 	"github.com/hades/podx/keygen"
 	"github.com/hades/podx/parser"
 	"github.com/hades/podx/project"
+	"github.com/hades/podx/security"
 	"github.com/hades/podx/updater"
 	"golang.org/x/term"
 )
@@ -56,6 +57,14 @@ func main() {
 		handleDecryptAll()
 	case "status":
 		handleStatus()
+	case "check":
+		handleCheck(os.Args[2:])
+	case "hook":
+		if len(os.Args) < 3 {
+			fmt.Println("Usage: podx hook <install|uninstall|status>")
+			os.Exit(1)
+		}
+		handleHook(os.Args[2], os.Args[3:])
 	case "encrypt":
 		handleEncrypt(os.Args[2:])
 	case "decrypt":
@@ -98,6 +107,8 @@ FILE COMMANDS:
   keygen     Generate Age or GPG key pair
 
 OTHER:
+  check      Check for unencrypted secrets
+  hook       Manage pre-commit hook
   update     Self-update to latest version
   version    Show version info
 
@@ -570,6 +581,61 @@ func printVersion() {
 func handleUpdate() {
 	if err := updater.Update(Version); err != nil {
 		fmt.Println("Error:", err)
+		os.Exit(1)
+	}
+}
+
+func handleCheck(args []string) {
+	fs := flag.NewFlagSet("check", flag.ExitOnError)
+	preCommit := fs.Bool("pre-commit", false, "Pre-commit mode (exit code only)")
+	fix := fs.Bool("fix", false, "Auto-fix gitignore issues")
+	fs.Parse(args)
+
+	cwd, _ := os.Getwd()
+	result := security.CheckProject(cwd, *fix)
+
+	output := security.FormatResult(result, *preCommit)
+	if output != "" {
+		fmt.Print(output)
+	}
+
+	if !result.Passed {
+		os.Exit(1)
+	}
+}
+
+func handleHook(subcmd string, args []string) {
+	cwd, _ := os.Getwd()
+
+	switch subcmd {
+	case "install":
+		if err := security.InstallHook(cwd); err != nil {
+			fmt.Println("Error:", err)
+			os.Exit(1)
+		}
+		fmt.Println("Pre-commit hook installed")
+		fmt.Println("\nThe hook will run 'podx check' before each commit.")
+		fmt.Println("If unencrypted secrets are found, the commit will be blocked.")
+		fmt.Println("\nTo uninstall: podx hook uninstall")
+
+	case "uninstall":
+		if err := security.UninstallHook(cwd); err != nil {
+			fmt.Println("Error:", err)
+			os.Exit(1)
+		}
+		fmt.Println("Pre-commit hook removed")
+
+	case "status":
+		if security.IsHookInstalled(cwd) {
+			fmt.Println("PODX pre-commit hook is installed")
+		} else {
+			fmt.Println("PODX pre-commit hook is not installed")
+			fmt.Println("Run 'podx hook install' to enable")
+		}
+
+	default:
+		fmt.Printf("Unknown hook command: %s\n", subcmd)
+		fmt.Println("Usage: podx hook <install|uninstall|status>")
 		os.Exit(1)
 	}
 }
