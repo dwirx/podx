@@ -1,0 +1,101 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project Overview
+
+PODX is a secure encryption CLI tool for teams to manage secrets and share them safely via Git. It supports symmetric (password-based) and asymmetric (key-based) encryption with format-preserving `.env` file handling.
+
+## Build Commands
+
+```bash
+make build          # Build binary for current platform
+make install        # Build and install to /usr/local/bin/
+make clean          # Remove build artifacts
+make release        # Cross-compile for all platforms (linux/darwin/windows × amd64/arm64)
+```
+
+Individual platform builds:
+```bash
+make linux-amd64    # GOOS=linux GOARCH=amd64
+make darwin-arm64   # GOOS=darwin GOARCH=arm64 (Apple Silicon)
+make windows-amd64  # GOOS=windows GOARCH=amd64
+```
+
+## Testing
+
+```bash
+go test ./...                    # Run all tests
+go test ./crypto -v              # Run crypto tests with verbose output
+go test ./parser -v              # Run parser tests
+go test ./... -cover             # Run with coverage
+go test ./crypto -run TestAESGCM # Run specific test
+```
+
+Test files follow Go conventions:
+- `crypto/aes_gcm_test.go` - AES-256-GCM encryption tests
+- `crypto/chacha_test.go` - ChaCha20-Poly1305 tests
+- `crypto/kdf_test.go` - Argon2id key derivation tests
+- `crypto/crypto_test.go` - Encryptor interface tests
+- `parser/env_test.go` - .env file parsing and encryption tests
+
+## Running the CLI
+
+```bash
+go run . <command>           # Run directly
+./podx <command>             # After building
+```
+
+Key commands for development:
+- `podx init` - Initialize project with `.podx.yaml`
+- `podx encrypt-all` / `podx decrypt-all` - Batch encrypt/decrypt
+- `podx keygen -t age` - Generate Age key pair
+
+## Architecture
+
+```
+main.go              CLI entry point, command routing, flag parsing
+├── crypto/          Encryption implementations
+│   ├── crypto.go    Encryptor interface and factory (NewEncryptor)
+│   ├── aes_gcm.go   AES-256-GCM symmetric encryption
+│   ├── chacha.go    ChaCha20-Poly1305 symmetric encryption
+│   ├── age.go       Age X25519 asymmetric encryption
+│   ├── gpg.go       GPG/PGP backend
+│   └── kdf.go       Argon2id key derivation (DeriveKey, DeriveKeyWithSalt)
+├── project/         Project workspace management
+│   └── project.go   .podx.yaml config, EncryptAll/DecryptAll, recipient management
+├── parser/          Format-preserving .env parsing
+│   └── env.go       Parse .env → EnvEntry[], encrypt values only (KEY=ENC[...])
+├── keygen/          Key generation utilities
+│   └── keygen.go    Age/GPG key generation, key storage (~/.config/podx/)
+└── updater/         Self-update mechanism
+    └── updater.go   GitHub releases check/download
+```
+
+## Key Patterns
+
+**Encryptor interface** (`crypto/crypto.go`): All symmetric algorithms implement `Encrypt(plaintext, key []byte)` and `Decrypt(ciphertext, key []byte)`. Use `crypto.NewEncryptor(algo)` to get an implementation.
+
+**Format-preserving encryption**: `.env` files are parsed line-by-line. Only values are encrypted to `ENC[age:base64]` format while keys and comments stay readable.
+
+**File format for symmetric encryption**: `[salt (16 bytes)][algo (1 byte)][ciphertext]`
+
+**Project workflow**: `.podx.yaml` stores recipients (public keys) and secret file patterns. `encrypt-all` encrypts files to `.podx` extension and deletes originals.
+
+## Dependencies
+
+- `filippo.io/age` - Age X25519 encryption
+- `golang.org/x/crypto` - Argon2id KDF
+- `gopkg.in/yaml.v3` - YAML config parsing
+
+## Version Injection
+
+Version info is injected at build time via ldflags:
+```bash
+go build -ldflags "-X main.Version=v1.0.0 -X main.BuildTime=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+```
+
+## Key Storage Locations
+
+- `~/.config/podx/age-keys.txt` - Private keys
+- `~/.config/podx/age-recipients/default.txt` - Public key
