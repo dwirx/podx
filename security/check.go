@@ -30,7 +30,14 @@ func CheckProject(dir string, fix bool) CheckResult {
 	// Load .podx.yaml
 	config, err := loadPodxConfig(dir)
 	if err != nil {
-		// No .podx.yaml, nothing to check
+		if os.IsNotExist(err) {
+			// No .podx.yaml, nothing to check - this is OK
+			return result
+		}
+		// Config exists but is malformed - this is a failure
+		result.Passed = false
+		result.EncryptionIssues = append(result.EncryptionIssues,
+			fmt.Sprintf("Failed to parse .podx.yaml: %v", err))
 		return result
 	}
 
@@ -78,12 +85,12 @@ func CheckProject(dir string, fix bool) CheckResult {
 func loadPodxConfig(dir string) (*PodxConfig, error) {
 	data, err := os.ReadFile(filepath.Join(dir, ".podx.yaml"))
 	if err != nil {
-		return nil, err
+		return nil, err // This already returns os.ErrNotExist for missing files
 	}
 
 	var config PodxConfig
 	if err := yaml.Unmarshal(data, &config); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("parse error: %w", err)
 	}
 
 	return &config, nil
