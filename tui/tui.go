@@ -49,11 +49,17 @@ func NewModel() Model {
 
 // Init initializes the model
 func (m Model) Init() tea.Cmd {
-	return nil
+	// Initialize sub-models and collect their init commands
+	return tea.Batch(
+		m.dashboard.Init(),
+		m.security.Init(),
+	)
 }
 
 // Update handles all messages
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmds []tea.Cmd
+
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		// Global key handling
@@ -95,7 +101,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
-		// Pass to active sub-model
+		// Pass key messages to active sub-model only
 		var cmd tea.Cmd
 		switch m.activeTab {
 		case TabDashboard:
@@ -118,9 +124,25 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.security.SetSize(m.width, contentHeight)
 
 		return m, nil
-	}
 
-	return m, nil
+	default:
+		// Pass all other messages (async results) to all sub-models
+		// since we don't know which sub-model the message is for
+		var cmd tea.Cmd
+		m.dashboard, cmd = m.dashboard.Update(msg)
+		if cmd != nil {
+			cmds = append(cmds, cmd)
+		}
+		m.commands, cmd = m.commands.Update(msg)
+		if cmd != nil {
+			cmds = append(cmds, cmd)
+		}
+		m.security, cmd = m.security.Update(msg)
+		if cmd != nil {
+			cmds = append(cmds, cmd)
+		}
+		return m, tea.Batch(cmds...)
+	}
 }
 
 // View renders the TUI
