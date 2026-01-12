@@ -135,6 +135,7 @@ main.go              CLI entry point, command routing, flag parsing
 │   ├── commands.go  Commands tab (interactive menu)
 │   ├── security.go  Security tab (check results)
 │   ├── files.go     Files tab (file browser, encrypt/decrypt)
+│   ├── encrypt_dialog.go Encryption dialog (method selection, password input)
 │   ├── styles.go    Lipgloss styles (Dracula-inspired palette)
 │   └── keys.go      Key bindings
 ```

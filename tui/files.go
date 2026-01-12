@@ -47,6 +47,7 @@ type FilesModel struct {
 	selectedFiles  map[string]bool // for multi-select
 	gotoInput      textinput.Model
 	showGoto       bool
+	encryptDialog  EncryptDialogModel
 }
 
 // fileLoadedMsg is sent when file list is loaded
@@ -83,6 +84,7 @@ func NewFilesModel() FilesModel {
 		selectedFiles: make(map[string]bool),
 		gotoInput:     gotoInput,
 		showGoto:      false,
+		encryptDialog: NewEncryptDialogModel(),
 	}
 }
 
@@ -156,7 +158,35 @@ func readDirectory(dir string) ([]FileInfo, error) {
 
 // Update handles messages for the files model
 func (m FilesModel) Update(msg tea.Msg) (FilesModel, tea.Cmd) {
+	// Handle encrypt dialog first if visible
+	if m.encryptDialog.IsVisible() {
+		var cmd tea.Cmd
+		m.encryptDialog, cmd = m.encryptDialog.Update(msg)
+
+		// Check if dialog was closed with completion
+		if !m.encryptDialog.IsVisible() && m.encryptDialog.successMsg != "" {
+			m.message = m.encryptDialog.successMsg
+			m.msgStyle = SuccessStyle
+			m.selectedFiles = make(map[string]bool)
+			return m, m.loadFiles
+		}
+
+		return m, cmd
+	}
+
 	switch msg := msg.(type) {
+	case encryptCompleteMsg:
+		m.loading = false
+		if msg.success {
+			m.message = msg.message
+			m.msgStyle = SuccessStyle
+			m.selectedFiles = make(map[string]bool)
+		} else {
+			m.message = msg.message
+			m.msgStyle = ErrorStyle
+		}
+		return m, m.loadFiles
+
 	case fileLoadedMsg:
 		m.loading = false
 		m.err = msg.err
@@ -301,12 +331,48 @@ func (m FilesModel) Update(msg tea.Msg) (FilesModel, tea.Cmd) {
 			return m, nil
 
 		case msg.String() == "e":
-			// Encrypt selected file(s)
-			return m, m.encryptSelected()
+			// Encrypt selected file(s) - show dialog
+			files := m.getFilesToOperate()
+			if len(files) == 0 {
+				m.message = "No file selected"
+				m.msgStyle = ErrorStyle
+				return m, nil
+			}
+			// Filter out already encrypted files
+			var toEncrypt []FileInfo
+			for _, f := range files {
+				if !f.IsEncrypted && !f.IsDir && f.Name != ".." {
+					toEncrypt = append(toEncrypt, f)
+				}
+			}
+			if len(toEncrypt) == 0 {
+				m.message = "Selected files are already encrypted"
+				m.msgStyle = WarningStyle
+				return m, nil
+			}
+			return m, m.encryptDialog.Show(toEncrypt, m.project, m.width, m.height)
 
 		case msg.String() == "d":
-			// Decrypt selected file(s)
-			return m, m.decryptSelected()
+			// Decrypt selected file(s) - show dialog
+			files := m.getFilesToOperate()
+			if len(files) == 0 {
+				m.message = "No file selected"
+				m.msgStyle = ErrorStyle
+				return m, nil
+			}
+			// Filter for encrypted files only
+			var toDecrypt []FileInfo
+			for _, f := range files {
+				if f.IsEncrypted {
+					toDecrypt = append(toDecrypt, f)
+				}
+			}
+			if len(toDecrypt) == 0 {
+				m.message = "Selected files are not encrypted"
+				m.msgStyle = WarningStyle
+				return m, nil
+			}
+			return m, m.encryptDialog.ShowDecrypt(toDecrypt, m.project, m.width, m.height)
 
 		case msg.String() == "/":
 			// Start filtering
@@ -656,7 +722,35 @@ func (m FilesModel) View() string {
 		return BoxStyle.Render(ErrorStyle.Render(fmt.Sprintf("Error: %v", m.err)))
 	}
 
-	return m.renderFileBrowser()
+	content := m.renderFileBrowser()
+
+	// Overlay dialog if visible
+	if m.encryptDialog.IsVisible() {
+		dialog := m.encryptDialog.View()
+
+		// Center the dialog
+		dialogLines := strings.Split(dialog, "\n")
+		contentLines := strings.Split(content, "\n")
+
+		// Calculate position
+		startLine := (len(contentLines) - len(dialogLines)) / 2
+		if startLine < 0 {
+			startLine = 0
+		}
+
+		// Overlay dialog on content
+		var result []string
+		for i, line := range contentLines {
+			if i >= startLine && i < startLine+len(dialogLines) {
+				result = append(result, dialogLines[i-startLine])
+			} else {
+				result = append(result, line)
+			}
+		}
+		return strings.Join(result, "\n")
+	}
+
+	return content
 }
 
 // getFileIcon returns an appropriate icon for the file type

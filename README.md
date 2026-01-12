@@ -17,9 +17,12 @@
 ## Features
 
 - 🔑 **Age & GPG Encryption** — Modern X25519 or traditional GPG
+- 🔐 **Password Encryption** — AES-256-GCM with Argon2id key derivation
 - 📁 **Project Workspaces** — Per-project `.podx.yaml` config
 - 👥 **Multi-Recipient** — Share secrets with team members
 - 📝 **Format-Preserving** — `.env` files stay readable (`KEY=ENC[...]`)
+- 🖥️ **Interactive TUI** — Beautiful terminal interface with file browser
+- 🛡️ **Security Checks** — Pre-commit hook, secret scanning, gitignore validation
 - 🔄 **Self-Update** — Built-in update command
 - 🌍 **Cross-Platform** — Linux, macOS, Windows
 
@@ -92,6 +95,81 @@ podx decrypt-all
 
 ---
 
+## Interactive TUI
+
+Launch the interactive terminal interface by running `podx` without arguments:
+
+```bash
+podx
+```
+
+### TUI Features
+
+The TUI provides four tabs:
+
+| Tab | Description |
+|-----|-------------|
+| **Dashboard** | Project overview, encryption status, recipients, quick actions |
+| **Commands** | Interactive menu to run any podx command |
+| **Security** | Live security check results with findings |
+| **Files** | File browser with encryption/decryption capabilities |
+
+### Navigation Keys
+
+| Key | Action |
+|-----|--------|
+| `Tab` / `1,2,3,4` | Switch between tabs |
+| `↑↓` / `j,k` | Navigate up/down |
+| `←→` / `h,l` | Navigate back/forward, select |
+| `Enter` | Confirm action |
+| `r` | Refresh data |
+| `?` | Show help overlay |
+| `q` / `Esc` | Quit |
+
+### Files Tab
+
+The Files tab provides a powerful file browser for encryption operations:
+
+| Key | Action |
+|-----|--------|
+| `Space` | Toggle file selection |
+| `a` | Select/deselect all files |
+| `e` | Encrypt selected files |
+| `d` | Decrypt selected files |
+| `p` | Toggle preview panel |
+| `g` | Go to path (enter directory path) |
+| `/` | Filter files by name |
+
+### Encryption Methods
+
+When pressing `e` to encrypt, you can choose between two methods:
+
+#### 🔐 Password Encryption (AES-GCM)
+
+- Uses AES-256-GCM symmetric encryption
+- Password-based with Argon2id key derivation
+- Requires password to decrypt
+- Good for personal files or when sharing password securely
+
+#### 🔑 Age Key Encryption
+
+- Uses Age X25519 asymmetric encryption
+- Encrypts to configured recipients in `.podx.yaml`
+- No password needed (uses key pairs)
+- Good for team sharing via Git
+
+### File Browser Features
+
+- 📁 **Directory Navigation** — Browse directories with Enter/l, go back with h
+- 🔍 **File Filtering** — Type `/` to filter files by name
+- 📂 **Go-to Path** — Press `g` to jump to any directory
+- 👁️ **File Preview** — Toggle preview panel with `p`
+- ✓ **Multi-select** — Select multiple files with Space, select all with `a`
+- 🎨 **Color Coding** — Files colored by type (Go=blue, Python=blue, config=green)
+- 🔒 **Encryption Status** — Encrypted files shown with lock icon
+
+---
+
 ## Commands
 
 ### Project Commands
@@ -127,6 +205,17 @@ podx decrypt-all
 | `podx update` | Self-update to latest version |
 | `podx version` | Show version and platform |
 | `podx help` | Show help |
+
+### Security Commands
+
+| Command | Description |
+|---------|-------------|
+| `podx check` | Run all security checks |
+| `podx check --fix` | Auto-fix gitignore issues |
+| `podx check --pre-commit` | Silent mode for git hooks |
+| `podx hook install` | Install pre-commit hook |
+| `podx hook uninstall` | Remove pre-commit hook |
+| `podx hook status` | Check if hook is installed |
 
 ---
 
@@ -281,6 +370,45 @@ podx update
 ---
 
 ## Security
+
+### Security Checks
+
+PODX includes comprehensive security scanning:
+
+| Check | Description |
+|-------|-------------|
+| **Encryption Status** | Verifies all secrets are encrypted |
+| **Gitignore Validation** | Ensures sensitive files are excluded |
+| **Pattern Scan** | Detects hardcoded secrets (API keys, passwords) |
+
+#### Pattern Detection
+
+Scans for common secret patterns:
+- AWS Access Keys (`AKIA...`)
+- Private Keys (`-----BEGIN...PRIVATE KEY-----`)
+- API Keys (`api[_-]?key`, `apikey`)
+- Passwords in URLs (`password=...`)
+- Connection Strings (`mongodb://...`, `postgres://...`)
+- JWT Tokens (`eyJ...`)
+
+#### Pre-Commit Hook
+
+Automatically run security checks before each commit:
+
+```bash
+# Install hook
+podx hook install
+
+# Check status
+podx hook status
+
+# Uninstall
+podx hook uninstall
+```
+
+When the hook detects issues, the commit is blocked with details about what needs to be fixed.
+
+### Cryptography
 
 - **Argon2id** for password-based key derivation
 - **AEAD** encryption (authenticated encryption)
