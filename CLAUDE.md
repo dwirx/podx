@@ -39,6 +39,31 @@ Test files follow Go conventions:
 - `crypto/crypto_test.go` - Encryptor interface tests
 - `parser/env_test.go` - .env file parsing and encryption tests
 
+## TUI (Terminal User Interface)
+
+```bash
+podx                          # Launch interactive TUI
+```
+
+The TUI provides three tabs:
+- **Dashboard** - Project status, encryption status, recipients, quick actions
+- **Commands** - Interactive menu to run any podx command
+- **Security** - Live security check with detailed results
+
+Navigation:
+- `Tab` / `1,2,3` - Switch tabs
+- `↑↓` / `j,k` - Navigate up/down
+- `←→` / `h,l` - Back/Select
+- `Enter` - Confirm action
+- `r` - Refresh data
+- `?` - Help overlay
+- `q` - Quit
+
+The `tui/` package uses:
+- `bubbletea` - TUI framework (Elm architecture)
+- `lipgloss` - Styling and layout
+- `bubbles` - Pre-built components (list, viewport)
+
 ## Security Features
 
 ```bash
@@ -94,6 +119,13 @@ main.go              CLI entry point, command routing, flag parsing
     ├── gitignore.go Gitignore validation/fixing
     ├── check.go     Check command logic
     └── hook.go      Pre-commit hook management
+├── tui/             Interactive terminal UI
+│   ├── tui.go       Main model and update loop
+│   ├── dashboard.go Dashboard tab (project info, quick actions)
+│   ├── commands.go  Commands tab (interactive menu)
+│   ├── security.go  Security tab (check results)
+│   ├── styles.go    Lipgloss styles
+│   └── keys.go      Key bindings
 ```
 
 ## Key Patterns
@@ -111,6 +143,9 @@ main.go              CLI entry point, command routing, flag parsing
 - `filippo.io/age` - Age X25519 encryption
 - `golang.org/x/crypto` - Argon2id KDF
 - `gopkg.in/yaml.v3` - YAML config parsing
+- `github.com/charmbracelet/bubbletea` - TUI framework
+- `github.com/charmbracelet/lipgloss` - TUI styling
+- `github.com/charmbracelet/bubbles` - TUI components
 
 ## Version Injection
 
