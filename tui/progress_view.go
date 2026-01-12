@@ -88,10 +88,10 @@ func (m ProgressViewModel) View() string {
 
 	var content strings.Builder
 
-	// Title
+	// Title using PODX color palette
 	titleStyle := lipgloss.NewStyle().
 		Bold(true).
-		Foreground(lipgloss.Color("86")).
+		Foreground(ColorPrimary).
 		MarginBottom(1)
 	content.WriteString(titleStyle.Render(m.Title))
 	content.WriteString("\n\n")
@@ -107,7 +107,7 @@ func (m ProgressViewModel) View() string {
 		bar := strings.Repeat("█", filled) + strings.Repeat("░", barWidth-filled)
 		percent := int(float64(m.Current) / float64(m.Total) * 100)
 
-		barStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("86"))
+		barStyle := lipgloss.NewStyle().Foreground(ColorPrimary)
 		content.WriteString(barStyle.Render(bar))
 		content.WriteString(fmt.Sprintf(" %d%%\n", percent))
 	} else if !m.complete {
@@ -120,7 +120,7 @@ func (m ProgressViewModel) View() string {
 
 	// Message
 	if m.Message != "" {
-		msgStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("252"))
+		msgStyle := lipgloss.NewStyle().Foreground(ColorWhite)
 		content.WriteString("\n")
 		content.WriteString(msgStyle.Render(m.Message))
 		content.WriteString("\n")
@@ -130,7 +130,7 @@ func (m ProgressViewModel) View() string {
 	if m.Output != "" {
 		content.WriteString("\n")
 		outputStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("241")).
+			Foreground(ColorMuted).
 			MaxHeight(10)
 		lines := strings.Split(m.Output, "\n")
 		if len(lines) > 10 {
@@ -145,25 +145,25 @@ func (m ProgressViewModel) View() string {
 		content.WriteString("\n")
 		if m.success {
 			successStyle := lipgloss.NewStyle().
-				Foreground(lipgloss.Color("46")). // Green
+				Foreground(ColorSuccess).
 				Bold(true)
 			content.WriteString(successStyle.Render("✓ Complete"))
 		} else {
 			errorStyle := lipgloss.NewStyle().
-				Foreground(lipgloss.Color("196")). // Red
+				Foreground(ColorError).
 				Bold(true)
 			content.WriteString(errorStyle.Render("✗ Failed"))
 		}
 		content.WriteString("\n\n")
 
-		helpStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
+		helpStyle := lipgloss.NewStyle().Foreground(ColorMuted)
 		content.WriteString(helpStyle.Render("Press Enter or Esc to close"))
 	}
 
 	// Box style
-	borderColor := lipgloss.Color("86")
+	borderColor := ColorPrimary
 	if m.complete && !m.success {
-		borderColor = lipgloss.Color("196")
+		borderColor = ColorError
 	}
 
 	dialogStyle := lipgloss.NewStyle().

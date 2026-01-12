@@ -104,17 +104,17 @@ func (m ConfirmDialogModel) View() string {
 
 	var content strings.Builder
 
-	// Title with warning icon
+	// Title with warning icon using PODX colors
 	titleStyle := lipgloss.NewStyle().
 		Bold(true).
-		Foreground(lipgloss.Color("214")). // Orange/warning color
+		Foreground(ColorWarning).
 		MarginBottom(1)
 	content.WriteString(titleStyle.Render("⚠️  " + m.Title))
 	content.WriteString("\n\n")
 
 	// Message
 	msgStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("252")).
+		Foreground(ColorWhite).
 		Width(50)
 	content.WriteString(msgStyle.Render(m.Message))
 	content.WriteString("\n\n")
@@ -122,27 +122,27 @@ func (m ConfirmDialogModel) View() string {
 	// Buttons
 	cancelStyle := lipgloss.NewStyle().
 		Padding(0, 2).
-		Foreground(lipgloss.Color("252"))
+		Foreground(ColorWhite)
 
 	confirmStyle := lipgloss.NewStyle().
 		Padding(0, 2).
-		Foreground(lipgloss.Color("196")) // Red for danger
+		Foreground(ColorError)
 
 	cancelBtn := "[ Cancel ]"
 	confirmBtn := "[ Confirm ]"
 
 	if m.selected == 0 {
 		cancelBtn = lipgloss.NewStyle().
-			Background(lipgloss.Color("240")).
-			Foreground(lipgloss.Color("255")).
+			Background(ColorBgLight).
+			Foreground(ColorWhite).
 			Padding(0, 1).
 			Render(" Cancel ")
 		confirmBtn = confirmStyle.Render(confirmBtn)
 	} else {
 		cancelBtn = cancelStyle.Render(cancelBtn)
 		confirmBtn = lipgloss.NewStyle().
-			Background(lipgloss.Color("196")).
-			Foreground(lipgloss.Color("255")).
+			Background(ColorError).
+			Foreground(ColorWhite).
 			Padding(0, 1).
 			Render(" Confirm ")
 	}
@@ -158,7 +158,7 @@ func (m ConfirmDialogModel) View() string {
 
 	// Help
 	helpStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("241")).
+		Foreground(ColorMuted).
 		Align(lipgloss.Center)
 	help := "y: confirm | n/Esc: cancel | Tab/h/l: switch | Enter: select"
 	content.WriteString(helpStyle.Render(help))
@@ -166,7 +166,7 @@ func (m ConfirmDialogModel) View() string {
 	// Dialog box style with warning border
 	dialogStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("214")). // Orange border
+		BorderForeground(ColorWarning).
 		Padding(1, 2).
 		Width(60)
 

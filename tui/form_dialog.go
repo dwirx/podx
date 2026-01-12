@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -17,7 +16,6 @@ type FormField struct {
 	Value       string
 	Required    bool
 	Password    bool // Mask input
-	input       textinput.Model
 }
 
 // FormDialogResult is sent when form is submitted or cancelled
@@ -34,6 +32,7 @@ type FormDialogModel struct {
 	Fields      []FormField
 	CommandID   string
 
+	inputs    []textinput.Model // Separate slice for inputs
 	focused   int
 	submitted bool
 	cancelled bool
@@ -41,31 +40,33 @@ type FormDialogModel struct {
 	height    int
 	visible   bool
 	keys      KeyMap
+	errMsg    string
 }
 
 // NewFormDialog creates a new form dialog
 func NewFormDialog(title, description string, fields []FormField, commandID string) FormDialogModel {
-	// Initialize text inputs for each field
-	for i := range fields {
+	inputs := make([]textinput.Model, len(fields))
+
+	for i, field := range fields {
 		ti := textinput.New()
-		ti.Placeholder = fields[i].Placeholder
+		ti.Placeholder = field.Placeholder
 		ti.CharLimit = 256
 		ti.Width = 40
 
-		if fields[i].Password {
+		if field.Password {
 			ti.EchoMode = textinput.EchoPassword
-			ti.EchoCharacter = '*'
+			ti.EchoCharacter = '•'
 		}
 
-		if fields[i].Value != "" {
-			ti.SetValue(fields[i].Value)
+		if field.Value != "" {
+			ti.SetValue(field.Value)
 		}
 
 		if i == 0 {
 			ti.Focus()
 		}
 
-		fields[i].input = ti
+		inputs[i] = ti
 	}
 
 	return FormDialogModel{
@@ -73,6 +74,7 @@ func NewFormDialog(title, description string, fields []FormField, commandID stri
 		Description: description,
 		Fields:      fields,
 		CommandID:   commandID,
+		inputs:      inputs,
 		focused:     0,
 		visible:     true,
 		keys:        DefaultKeyMap(),
@@ -81,7 +83,10 @@ func NewFormDialog(title, description string, fields []FormField, commandID stri
 
 // Init initializes the form dialog
 func (m FormDialogModel) Init() tea.Cmd {
-	return textinput.Blink
+	if len(m.inputs) > 0 {
+		return m.inputs[0].Focus()
+	}
+	return nil
 }
 
 // Update handles form dialog messages
@@ -92,50 +97,52 @@ func (m FormDialogModel) Update(msg tea.Msg) (FormDialogModel, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		switch {
+		switch msg.String() {
 		// Cancel
-		case msg.String() == "esc":
+		case "esc":
 			m.cancelled = true
 			m.visible = false
 			return m, func() tea.Msg {
 				return FormDialogResult{Submitted: false, CommandID: m.CommandID}
 			}
 
-		// Submit
-		case msg.String() == "enter":
-			// If on last field or pressing ctrl+enter, submit
-			if m.focused >= len(m.Fields) {
-				// Submit button focused
+		// Submit with Ctrl+S
+		case "ctrl+s":
+			return m.submit()
+
+		// Enter - next field or submit
+		case "enter":
+			if m.focused >= len(m.inputs) {
+				// On submit button
 				return m.submit()
 			}
 			// Move to next field
 			return m.nextField()
 
-		// Tab or down to next field
-		case msg.String() == "tab", key.Matches(msg, m.keys.Down):
+		// Tab to next field
+		case "tab":
 			return m.nextField()
 
-		// Shift+tab or up to previous field
-		case msg.String() == "shift+tab", key.Matches(msg, m.keys.Up):
+		// Shift+Tab to previous field
+		case "shift+tab":
 			return m.prevField()
 
-		// Ctrl+Enter to submit from any field
-		case msg.String() == "ctrl+s":
-			return m.submit()
-		}
+		// Down arrow to next field
+		case "down":
+			if m.focused < len(m.inputs) {
+				return m.nextField()
+			}
 
-		// Update focused input
-		if m.focused < len(m.Fields) {
-			var cmd tea.Cmd
-			m.Fields[m.focused].input, cmd = m.Fields[m.focused].input.Update(msg)
-			return m, cmd
+		// Up arrow to previous field
+		case "up":
+			return m.prevField()
 		}
 	}
 
-	// Update focused input for other messages
-	if m.focused < len(m.Fields) {
+	// Update the focused input
+	if m.focused < len(m.inputs) {
 		var cmd tea.Cmd
-		m.Fields[m.focused].input, cmd = m.Fields[m.focused].input.Update(msg)
+		m.inputs[m.focused], cmd = m.inputs[m.focused].Update(msg)
 		return m, cmd
 	}
 
@@ -144,18 +151,19 @@ func (m FormDialogModel) Update(msg tea.Msg) (FormDialogModel, tea.Cmd) {
 
 // nextField moves focus to next field
 func (m FormDialogModel) nextField() (FormDialogModel, tea.Cmd) {
-	if m.focused < len(m.Fields) {
-		m.Fields[m.focused].input.Blur()
+	// Blur current input
+	if m.focused < len(m.inputs) {
+		m.inputs[m.focused].Blur()
 	}
 
 	m.focused++
-	if m.focused > len(m.Fields) {
+	if m.focused > len(m.inputs) {
 		m.focused = 0
 	}
 
-	if m.focused < len(m.Fields) {
-		m.Fields[m.focused].input.Focus()
-		return m, textinput.Blink
+	// Focus new input
+	if m.focused < len(m.inputs) {
+		return m, m.inputs[m.focused].Focus()
 	}
 
 	return m, nil
@@ -163,18 +171,19 @@ func (m FormDialogModel) nextField() (FormDialogModel, tea.Cmd) {
 
 // prevField moves focus to previous field
 func (m FormDialogModel) prevField() (FormDialogModel, tea.Cmd) {
-	if m.focused < len(m.Fields) {
-		m.Fields[m.focused].input.Blur()
+	// Blur current input
+	if m.focused < len(m.inputs) {
+		m.inputs[m.focused].Blur()
 	}
 
 	m.focused--
 	if m.focused < 0 {
-		m.focused = len(m.Fields)
+		m.focused = len(m.inputs)
 	}
 
-	if m.focused < len(m.Fields) {
-		m.Fields[m.focused].input.Focus()
-		return m, textinput.Blink
+	// Focus new input
+	if m.focused < len(m.inputs) {
+		return m, m.inputs[m.focused].Focus()
 	}
 
 	return m, nil
@@ -183,17 +192,24 @@ func (m FormDialogModel) prevField() (FormDialogModel, tea.Cmd) {
 // submit validates and submits the form
 func (m FormDialogModel) submit() (FormDialogModel, tea.Cmd) {
 	// Validate required fields
-	for _, field := range m.Fields {
-		if field.Required && strings.TrimSpace(field.input.Value()) == "" {
-			// Could show error, for now just don't submit
+	for i, field := range m.Fields {
+		if field.Required && strings.TrimSpace(m.inputs[i].Value()) == "" {
+			m.errMsg = fmt.Sprintf("Field '%s' is required", field.Label)
 			return m, nil
 		}
 	}
 
+	// Custom validation
+	err := m.validate()
+	if err != nil {
+		m.errMsg = err.Error()
+		return m, nil
+	}
+
 	// Collect values
 	values := make(map[string]string)
-	for _, field := range m.Fields {
-		values[field.Label] = field.input.Value()
+	for i, field := range m.Fields {
+		values[field.Label] = m.inputs[i].Value()
 	}
 
 	m.submitted = true
@@ -208,6 +224,32 @@ func (m FormDialogModel) submit() (FormDialogModel, tea.Cmd) {
 	}
 }
 
+// validate performs custom validation based on command
+func (m FormDialogModel) validate() error {
+	switch m.CommandID {
+	case "encrypt", "env-encrypt":
+		// Check password match (assuming Confirm is last field)
+		if len(m.inputs) >= 4 {
+			pass := m.inputs[2].Value()
+			confirm := m.inputs[3].Value()
+			if pass != confirm {
+				return fmt.Errorf("Passwords do not match")
+			}
+			if len(pass) < 6 {
+				return fmt.Errorf("Password must be at least 6 characters")
+			}
+		}
+	case "add-recipient":
+		if len(m.inputs) >= 2 {
+			key := m.inputs[1].Value()
+			if !strings.HasPrefix(key, "age1") {
+				return fmt.Errorf("Invalid Age key (must start with 'age1')")
+			}
+		}
+	}
+	return nil
+}
+
 // View renders the form dialog
 func (m FormDialogModel) View() string {
 	if !m.visible {
@@ -216,47 +258,63 @@ func (m FormDialogModel) View() string {
 
 	var content strings.Builder
 
-	// Title
+	// Title using PODX color palette
 	titleStyle := lipgloss.NewStyle().
 		Bold(true).
-		Foreground(lipgloss.Color("86")).
+		Foreground(ColorPrimary).
 		MarginBottom(1)
-	content.WriteString(titleStyle.Render(m.Title))
+	content.WriteString(titleStyle.Render("📝 " + m.Title))
 	content.WriteString("\n\n")
 
 	// Description
 	if m.Description != "" {
 		descStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("241")).
-			MarginBottom(1)
+			Foreground(ColorMuted).
+			Italic(true)
 		content.WriteString(descStyle.Render(m.Description))
 		content.WriteString("\n\n")
 	}
 
 	// Fields
-	labelStyle := lipgloss.NewStyle().
-		Width(15).
-		Align(lipgloss.Right).
-		MarginRight(2)
-
-	requiredStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("196"))
+	labelWidth := 12
+	for _, field := range m.Fields {
+		if len(field.Label) > labelWidth {
+			labelWidth = len(field.Label)
+		}
+	}
 
 	for i, field := range m.Fields {
 		label := field.Label
 		if field.Required {
-			label = label + requiredStyle.Render("*")
+			label = label + " *"
 		}
+
+		// Style for label
+		labelStyle := lipgloss.NewStyle().
+			Width(labelWidth + 2).
+			Align(lipgloss.Right).
+			Foreground(ColorWhite)
 
 		// Highlight focused field
 		if i == m.focused {
-			label = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("86")).
-				Render(label)
+			labelStyle = labelStyle.Foreground(ColorPrimary).Bold(true)
 		}
 
-		content.WriteString(labelStyle.Render(label))
-		content.WriteString(field.input.View())
+		// Input styling
+		inputView := m.inputs[i].View()
+
+		content.WriteString(labelStyle.Render(label + ": "))
+		content.WriteString(inputView)
+		content.WriteString("\n")
+	}
+
+	// Error message
+	if m.errMsg != "" {
+		content.WriteString("\n")
+		errStyle := lipgloss.NewStyle().
+			Foreground(ColorError).
+			Bold(true)
+		content.WriteString(errStyle.Render("⚠ " + m.errMsg))
 		content.WriteString("\n")
 	}
 
@@ -266,42 +324,43 @@ func (m FormDialogModel) View() string {
 	cancelBtn := "[ Cancel ]"
 	submitBtn := "[ Submit ]"
 
-	if m.focused == len(m.Fields) {
-		submitBtn = lipgloss.NewStyle().
-			Background(lipgloss.Color("86")).
-			Foreground(lipgloss.Color("0")).
-			Render("[ Submit ]")
+	btnInactive := lipgloss.NewStyle().
+		Foreground(ColorMuted)
+
+	btnActive := lipgloss.NewStyle().
+		Background(ColorSuccess).
+		Foreground(lipgloss.Color("#000")).
+		Bold(true).
+		Padding(0, 1)
+
+	if m.focused == len(m.inputs) {
+		submitBtn = btnActive.Render("Submit")
+		cancelBtn = btnInactive.Render(cancelBtn)
 	} else {
-		submitBtn = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("241")).
-			Render("[ Submit ]")
+		submitBtn = btnInactive.Render(submitBtn)
+		cancelBtn = btnInactive.Render(cancelBtn)
 	}
 
-	cancelBtn = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("241")).
-		Render(cancelBtn)
-
-	buttons := lipgloss.JoinHorizontal(lipgloss.Center, cancelBtn, "  ", submitBtn)
+	buttonRow := lipgloss.JoinHorizontal(lipgloss.Center, cancelBtn, "   ", submitBtn)
 	buttonContainer := lipgloss.NewStyle().
 		Width(60).
 		Align(lipgloss.Center).
-		Render(buttons)
+		MarginTop(1)
+	content.WriteString(buttonContainer.Render(buttonRow))
 
-	content.WriteString(buttonContainer)
 	content.WriteString("\n\n")
 
 	// Help
 	helpStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("241")).
-		Align(lipgloss.Center)
-	help := "Tab: next field | Shift+Tab: prev | Enter: next/submit | Esc: cancel"
+		Foreground(ColorMuted)
+	help := "Tab/↓: next • Shift+Tab/↑: prev • Enter: next/submit • Esc: cancel"
 	content.WriteString(helpStyle.Render(help))
 
-	// Dialog box style
+	// Dialog box style with PODX theme
 	dialogStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("86")).
-		Padding(1, 2).
+		BorderForeground(ColorPrimary).
+		Padding(1, 3).
 		Width(70)
 
 	return dialogStyle.Render(content.String())
@@ -318,8 +377,9 @@ func (m *FormDialogModel) Show() {
 	m.submitted = false
 	m.cancelled = false
 	m.focused = 0
-	if len(m.Fields) > 0 {
-		m.Fields[0].input.Focus()
+	m.errMsg = ""
+	if len(m.inputs) > 0 {
+		m.inputs[0].Focus()
 	}
 }
 
@@ -337,8 +397,8 @@ func (m *FormDialogModel) SetSize(width, height int) {
 // GetValues returns all field values
 func (m FormDialogModel) GetValues() map[string]string {
 	values := make(map[string]string)
-	for _, field := range m.Fields {
-		values[field.Label] = field.input.Value()
+	for i, field := range m.Fields {
+		values[field.Label] = m.inputs[i].Value()
 	}
 	return values
 }
@@ -349,8 +409,9 @@ func CenterDialog(dialog string, termWidth, termHeight int) string {
 	dialogHeight := len(lines)
 	dialogWidth := 0
 	for _, line := range lines {
-		if len(line) > dialogWidth {
-			dialogWidth = len(line)
+		w := lipgloss.Width(line)
+		if w > dialogWidth {
+			dialogWidth = w
 		}
 	}
 
@@ -387,8 +448,8 @@ func CreateFormForCommand(commandID string) *FormDialogModel {
 			"Add Recipient",
 			"Add a team member who can decrypt secrets",
 			[]FormField{
-				{Label: "Name", Placeholder: "Team member name", Required: true},
-				{Label: "Key", Placeholder: "age1xxx... (Age public key)", Required: true},
+				{Label: "Name", Placeholder: "e.g. John Doe", Required: true},
+				{Label: "Key", Placeholder: "age1xxxxxxxxx...", Required: true},
 			},
 			commandID,
 		)
@@ -397,11 +458,11 @@ func CreateFormForCommand(commandID string) *FormDialogModel {
 	case "encrypt":
 		form := NewFormDialog(
 			"Encrypt File",
-			"Encrypt a single file with password",
+			"Encrypt a single file with password (AES-256-GCM)",
 			[]FormField{
-				{Label: "Input", Placeholder: "Path to file to encrypt", Required: true},
-				{Label: "Output", Placeholder: "Path for encrypted file", Required: true},
-				{Label: "Password", Placeholder: "Encryption password", Required: true, Password: true},
+				{Label: "Input", Placeholder: "path/to/file.txt", Required: true},
+				{Label: "Output", Placeholder: "path/to/file.enc", Required: true},
+				{Label: "Password", Placeholder: "Enter password", Required: true, Password: true},
 				{Label: "Confirm", Placeholder: "Confirm password", Required: true, Password: true},
 			},
 			commandID,
@@ -413,9 +474,9 @@ func CreateFormForCommand(commandID string) *FormDialogModel {
 			"Decrypt File",
 			"Decrypt an encrypted file",
 			[]FormField{
-				{Label: "Input", Placeholder: "Path to encrypted file", Required: true},
-				{Label: "Output", Placeholder: "Path for decrypted file", Required: true},
-				{Label: "Password", Placeholder: "Decryption password", Required: true, Password: true},
+				{Label: "Input", Placeholder: "path/to/file.enc", Required: true},
+				{Label: "Output", Placeholder: "path/to/file.txt", Required: true},
+				{Label: "Password", Placeholder: "Enter password", Required: true, Password: true},
 			},
 			commandID,
 		)
@@ -424,11 +485,11 @@ func CreateFormForCommand(commandID string) *FormDialogModel {
 	case "env-encrypt":
 		form := NewFormDialog(
 			"Encrypt .env File",
-			"Encrypt .env file with format-preserving encryption",
+			"Format-preserving encryption for .env files",
 			[]FormField{
-				{Label: "Input", Placeholder: ".env file path", Required: true, Value: ".env"},
-				{Label: "Output", Placeholder: "Output path", Required: true, Value: ".env.podx"},
-				{Label: "Password", Placeholder: "Encryption password", Required: true, Password: true},
+				{Label: "Input", Placeholder: ".env", Required: true, Value: ".env"},
+				{Label: "Output", Placeholder: ".env.podx", Required: true, Value: ".env.podx"},
+				{Label: "Password", Placeholder: "Enter password", Required: true, Password: true},
 				{Label: "Confirm", Placeholder: "Confirm password", Required: true, Password: true},
 			},
 			commandID,
@@ -440,30 +501,25 @@ func CreateFormForCommand(commandID string) *FormDialogModel {
 			"Decrypt .env File",
 			"Decrypt encrypted .env file",
 			[]FormField{
-				{Label: "Input", Placeholder: "Encrypted .env path", Required: true, Value: ".env.podx"},
-				{Label: "Output", Placeholder: "Output path", Required: true, Value: ".env"},
-				{Label: "Password", Placeholder: "Decryption password", Required: true, Password: true},
+				{Label: "Input", Placeholder: ".env.podx", Required: true, Value: ".env.podx"},
+				{Label: "Output", Placeholder: ".env", Required: true, Value: ".env"},
+				{Label: "Password", Placeholder: "Enter password", Required: true, Password: true},
 			},
 			commandID,
 		)
 		return &form
 
 	case "keygen-age":
-		form := NewFormDialog(
-			"Generate Age Key",
-			"Generate a new Age X25519 key pair",
-			[]FormField{},
-			commandID,
-		)
-		return &form
+		// No form needed, execute directly
+		return nil
 
 	case "keygen-gpg":
 		form := NewFormDialog(
 			"Generate GPG Key",
 			"Generate a new GPG key pair",
 			[]FormField{
-				{Label: "Name", Placeholder: "Your full name", Required: true},
-				{Label: "Email", Placeholder: "your@email.com", Required: true},
+				{Label: "Name", Placeholder: "Your Full Name", Required: true},
+				{Label: "Email", Placeholder: "you@example.com", Required: true},
 			},
 			commandID,
 		)
@@ -514,22 +570,4 @@ func BuildCommandArgs(commandID string, values map[string]string) []string {
 	default:
 		return []string{}
 	}
-}
-
-// ValidateFormValues validates form values before submission
-func ValidateFormValues(commandID string, values map[string]string) error {
-	switch commandID {
-	case "encrypt", "env-encrypt":
-		if values["Password"] != values["Confirm"] {
-			return fmt.Errorf("passwords do not match")
-		}
-		if len(values["Password"]) < 8 {
-			return fmt.Errorf("password must be at least 8 characters")
-		}
-	case "add-recipient":
-		if !strings.HasPrefix(values["Key"], "age1") {
-			return fmt.Errorf("invalid Age public key (must start with 'age1')")
-		}
-	}
-	return nil
 }
