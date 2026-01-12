@@ -409,72 +409,23 @@ func CenterDialog(dialog string, termWidth, termHeight int) string {
 	if termWidth < 80 {
 		termWidth = 80
 	}
-	if termHeight < 20 {
-		termHeight = 20
+	if termHeight < 24 {
+		termHeight = 24
 	}
 
-	lines := strings.Split(dialog, "\n")
-	dialogHeight := len(lines)
-	dialogWidth := 0
-	for _, line := range lines {
-		w := lipgloss.Width(line)
-		if w > dialogWidth {
-			dialogWidth = w
-		}
-	}
+	// Use lipgloss.Place to center the dialog with a background
+	// This properly handles ANSI escape codes and centering
+	overlay := lipgloss.Place(
+		termWidth,
+		termHeight,
+		lipgloss.Center,
+		lipgloss.Center,
+		dialog,
+		lipgloss.WithWhitespaceBackground(ColorBg),
+		lipgloss.WithWhitespaceForeground(ColorBg),
+	)
 
-	// Calculate padding
-	topPadding := (termHeight - dialogHeight) / 2
-	if topPadding < 0 {
-		topPadding = 0
-	}
-	leftPadding := (termWidth - dialogWidth) / 2
-	if leftPadding < 0 {
-		leftPadding = 0
-	}
-
-	// Create background style
-	bgStyle := lipgloss.NewStyle().
-		Background(ColorBg).
-		Foreground(ColorWhite)
-
-	var result strings.Builder
-
-	// Fill top padding with blank lines
-	blankLine := bgStyle.Render(strings.Repeat(" ", termWidth))
-	for i := 0; i < topPadding; i++ {
-		result.WriteString(blankLine)
-		result.WriteString("\n")
-	}
-
-	// Render dialog lines with left padding and right padding to fill width
-	leftPad := strings.Repeat(" ", leftPadding)
-	for _, line := range lines {
-		lineWidth := lipgloss.Width(line)
-		rightPadLen := termWidth - leftPadding - lineWidth
-		if rightPadLen < 0 {
-			rightPadLen = 0
-		}
-		rightPad := strings.Repeat(" ", rightPadLen)
-
-		// Combine: left background + dialog content + right background
-		result.WriteString(bgStyle.Render(leftPad))
-		result.WriteString(line)
-		result.WriteString(bgStyle.Render(rightPad))
-		result.WriteString("\n")
-	}
-
-	// Fill remaining height
-	remaining := termHeight - topPadding - dialogHeight
-	if remaining < 0 {
-		remaining = 0
-	}
-	for i := 0; i < remaining; i++ {
-		result.WriteString(blankLine)
-		result.WriteString("\n")
-	}
-
-	return result.String()
+	return overlay
 }
 
 // CreateFormForCommand creates appropriate form for a command

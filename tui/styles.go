@@ -130,4 +130,8 @@ var (
 			BorderForeground(ColorMuted).
 			Padding(1, 2).
 			MarginBottom(1)
+
+	// OverlayBgStyle for dialog overlays - dark semi-transparent background
+	OverlayBgStyle = lipgloss.NewStyle().
+			Background(ColorBg)
 )

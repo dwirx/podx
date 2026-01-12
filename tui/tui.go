@@ -184,6 +184,11 @@ func (m Model) View() string {
 		return "Loading..."
 	}
 
+	// If a fullscreen dialog is active, render only the dialog
+	if m.hasFullscreenDialog() {
+		return m.renderContent()
+	}
+
 	var s strings.Builder
 
 	// Header
@@ -320,6 +325,32 @@ func (m Model) hasActiveDialog() bool {
 			return true
 		}
 		if m.files.filtering || m.files.showGoto {
+			return true
+		}
+	}
+
+	return false
+}
+
+// hasFullscreenDialog checks if any fullscreen dialog overlay is currently active
+// Fullscreen dialogs should hide the header, tabs, and status bar
+func (m Model) hasFullscreenDialog() bool {
+	// Check Commands tab dialogs
+	if m.activeTab == TabCommands {
+		if m.commands.formDialog != nil && m.commands.formDialog.IsVisible() {
+			return true
+		}
+		if m.commands.confirmDialog != nil && m.commands.confirmDialog.IsVisible() {
+			return true
+		}
+		if m.commands.progressView != nil && m.commands.progressView.IsVisible() {
+			return true
+		}
+	}
+
+	// Check Files tab encrypt dialog
+	if m.activeTab == TabFiles {
+		if m.files.encryptDialog.IsVisible() {
 			return true
 		}
 	}

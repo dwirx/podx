@@ -722,35 +722,13 @@ func (m FilesModel) View() string {
 		return BoxStyle.Render(ErrorStyle.Render(fmt.Sprintf("Error: %v", m.err)))
 	}
 
-	content := m.renderFileBrowser()
-
-	// Overlay dialog if visible
+	// Overlay dialog if visible - use CenterDialog for proper fullscreen overlay
 	if m.encryptDialog.IsVisible() {
 		dialog := m.encryptDialog.View()
-
-		// Center the dialog
-		dialogLines := strings.Split(dialog, "\n")
-		contentLines := strings.Split(content, "\n")
-
-		// Calculate position
-		startLine := (len(contentLines) - len(dialogLines)) / 2
-		if startLine < 0 {
-			startLine = 0
-		}
-
-		// Overlay dialog on content
-		var result []string
-		for i, line := range contentLines {
-			if i >= startLine && i < startLine+len(dialogLines) {
-				result = append(result, dialogLines[i-startLine])
-			} else {
-				result = append(result, line)
-			}
-		}
-		return strings.Join(result, "\n")
+		return CenterDialog(dialog, m.width, m.height)
 	}
 
-	return content
+	return m.renderFileBrowser()
 }
 
 // getFileIcon returns an appropriate icon for the file type
