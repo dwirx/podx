@@ -68,3 +68,23 @@ func TestCheckGitignoreNoFile(t *testing.T) {
 		t.Errorf("should report all as missing when no .gitignore")
 	}
 }
+
+func TestFixGitignoreNoDuplicateHeader(t *testing.T) {
+	tmpDir := t.TempDir()
+	gitignore := filepath.Join(tmpDir, ".gitignore")
+
+	// First call
+	FixGitignore(tmpDir, []string{".env"})
+	// Second call
+	FixGitignore(tmpDir, []string{".env.local"})
+
+	// Read back
+	data, _ := os.ReadFile(gitignore)
+	content := string(data)
+
+	// Count occurrences of PODX header
+	count := strings.Count(content, "# PODX")
+	if count != 1 {
+		t.Errorf("PODX header appears %d times, want 1", count)
+	}
+}

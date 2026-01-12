@@ -44,6 +44,11 @@ func FixGitignore(dir string, patterns []string) error {
 
 	gitignorePath := filepath.Join(dir, ".gitignore")
 
+	// Check if header already exists to avoid duplication
+	header := "# PODX - Decrypted secrets (DO NOT COMMIT)"
+	content, _ := os.ReadFile(gitignorePath)
+	hasHeader := strings.Contains(string(content), header)
+
 	// Open for append (create if not exists)
 	f, err := os.OpenFile(gitignorePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
@@ -51,12 +56,18 @@ func FixGitignore(dir string, patterns []string) error {
 	}
 	defer f.Close()
 
-	// Add header
-	f.WriteString("\n# PODX - Decrypted secrets (DO NOT COMMIT)\n")
+	// Add header only if not present
+	if !hasHeader {
+		if _, err := f.WriteString("\n" + header + "\n"); err != nil {
+			return err
+		}
+	}
 
 	// Add patterns
 	for _, pattern := range patterns {
-		f.WriteString(pattern + "\n")
+		if _, err := f.WriteString(pattern + "\n"); err != nil {
+			return err
+		}
 	}
 
 	return nil
