@@ -230,8 +230,6 @@ func runWithElevatedPrivileges() error {
 	return nil
 }
 
-
-
 // CheckUpdate checks if update is available (non-blocking)
 func CheckUpdate(currentVersion string) (string, bool) {
 	release, err := GetLatestRelease()

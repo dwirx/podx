@@ -575,7 +575,7 @@ func printVersion() {
 	fmt.Printf("PODX %s\n", Version)
 	fmt.Printf("Build time: %s\n", BuildTime)
 	fmt.Printf("Platform: %s/%s\n", runtime.GOOS, runtime.GOARCH)
-	
+
 	// Check for updates in background
 	if newVersion, available := updater.CheckUpdate(Version); available {
 		fmt.Printf("\n📦 New version available: %s\n", newVersion)

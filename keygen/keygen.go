@@ -11,18 +11,18 @@ import (
 )
 
 const (
-	configDir      = ".config/podx"
-	ageKeysFile    = "age-keys.txt"
+	configDir        = ".config/podx"
+	ageKeysFile      = "age-keys.txt"
 	ageRecipientsDir = "age-recipients"
 )
 
 // KeygenResult contains the result of key generation
 type KeygenResult struct {
-	Backend     string
-	KeyFile     string
-	PublicKey   string
-	PrivateKey  string
-	Email       string
+	Backend    string
+	KeyFile    string
+	PublicKey  string
+	PrivateKey string
+	Email      string
 }
 
 // GetConfigDir returns the podx config directory
@@ -72,7 +72,7 @@ func GenerateAge() (*KeygenResult, error) {
 	// # created: <timestamp>
 	// # public key: <public_key>
 	// AGE-SECRET-KEY-...
-	content := fmt.Sprintf("# created: %s\n# public key: %s\n%s\n", 
+	content := fmt.Sprintf("# created: %s\n# public key: %s\n%s\n",
 		time.Now().Format(time.RFC3339), publicKey, privateKey)
 
 	f, err := os.OpenFile(keyFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
@@ -169,18 +169,18 @@ func PrintKeygenResult(result *KeygenResult) {
 
 	// Top border
 	fmt.Printf("╔%s╗\n", strings.Repeat("═", width))
-	
+
 	// Title
 	title := "🔑 PODX Key Generated Successfully"
 	padding := (width - len(title)) / 2
 	fmt.Printf("║%s%s%s║\n", strings.Repeat(" ", padding), title, strings.Repeat(" ", width-padding-len(title)))
-	
+
 	// Separator
 	fmt.Printf("╠%s╣\n", strings.Repeat("═", width))
-	
+
 	// Backend
 	printRow("Backend:", result.Backend, width)
-	
+
 	// Key file (for Age)
 	if result.KeyFile != "" {
 		// Shorten path
@@ -190,15 +190,15 @@ func PrintKeygenResult(result *KeygenResult) {
 		}
 		printRow("Key file:", shortPath, width)
 	}
-	
+
 	// Email (for GPG)
 	if result.Email != "" {
 		printRow("Email:", result.Email, width)
 	}
-	
+
 	// Separator
 	fmt.Printf("╠%s╣\n", strings.Repeat("═", width))
-	
+
 	// Keys section for Age
 	if result.Backend == "age" {
 		printRow("Public Key:", "", width)
@@ -209,10 +209,10 @@ func PrintKeygenResult(result *KeygenResult) {
 	} else {
 		printRow("Key ID:", result.PublicKey, width)
 	}
-	
+
 	// Bottom border
 	fmt.Printf("╚%s╝\n", strings.Repeat("═", width))
-	
+
 	// Additional info
 	if result.Backend == "age" {
 		fmt.Println()
@@ -226,11 +226,11 @@ func printRow(label, value string, width int) {
 	if value != "" {
 		content = label + " " + value
 	}
-	
+
 	// Truncate if too long
 	if len(content) > width-2 {
 		content = content[:width-5] + "..."
 	}
-	
+
 	fmt.Printf("║ %s%s║\n", content, strings.Repeat(" ", width-len(content)-1))
 }

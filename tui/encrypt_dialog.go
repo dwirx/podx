@@ -35,21 +35,21 @@ const (
 
 // EncryptDialogModel represents the encryption dialog
 type EncryptDialogModel struct {
-	visible       bool
-	state         DialogState
-	method        EncryptMethod
-	selectedIdx   int
-	files         []FileInfo
-	password      textinput.Model
-	confirmPass   textinput.Model
-	focusedInput  int // 0 = password, 1 = confirm
-	outputPath    string
-	project       *project.Project
-	errorMsg      string
-	successMsg    string
-	width         int
-	height        int
-	isDecrypt     bool // true for decryption mode
+	visible      bool
+	state        DialogState
+	method       EncryptMethod
+	selectedIdx  int
+	files        []FileInfo
+	password     textinput.Model
+	confirmPass  textinput.Model
+	focusedInput int // 0 = password, 1 = confirm
+	outputPath   string
+	project      *project.Project
+	errorMsg     string
+	successMsg   string
+	width        int
+	height       int
+	isDecrypt    bool // true for decryption mode
 }
 
 // encryptCompleteMsg is sent when encryption is complete

@@ -17,8 +17,8 @@ type EnvEntry struct {
 	Value     string
 	Encrypted bool
 	Algorithm string
-	Comment   string   // Jika baris adalah komentar atau empty
-	Raw       string   // Baris original
+	Comment   string // Jika baris adalah komentar atau empty
+	Raw       string // Baris original
 	IsComment bool
 }
 
@@ -155,7 +155,7 @@ func DecryptEnvValues(entries []EnvEntry, key []byte) error {
 		// Pilih encryptor berdasarkan algorithm yang tersimpan
 		enc, err := crypto.NewEncryptor(crypto.Algorithm(entries[i].Algorithm))
 		if err != nil {
-			return fmt.Errorf("unsupported algorithm '%s' for key '%s': %w", 
+			return fmt.Errorf("unsupported algorithm '%s' for key '%s': %w",
 				entries[i].Algorithm, entries[i].Key, err)
 		}
 
