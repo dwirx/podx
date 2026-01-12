@@ -65,7 +65,24 @@ func (m Model) Init() tea.Cmd {
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		// Global key handling
+		// Check if any dialog is active - if so, pass keys directly to sub-model
+		// This allows dialogs to receive number keys, tab, etc. without global interception
+		if m.hasActiveDialog() {
+			var cmd tea.Cmd
+			switch m.activeTab {
+			case TabDashboard:
+				m.dashboard, cmd = m.dashboard.Update(msg)
+			case TabCommands:
+				m.commands, cmd = m.commands.Update(msg)
+			case TabSecurity:
+				m.security, cmd = m.security.Update(msg)
+			case TabFiles:
+				m.files, cmd = m.files.Update(msg)
+			}
+			return m, cmd
+		}
+
+		// Global key handling (only when no dialog is active)
 		switch {
 		case key.Matches(msg, m.keys.Quit):
 			return m, tea.Quit
@@ -279,4 +296,33 @@ func Run() error {
 	p := tea.NewProgram(NewModel(), tea.WithAltScreen())
 	_, err := p.Run()
 	return err
+}
+
+// hasActiveDialog checks if any dialog is currently active
+// This is used to prevent global key bindings from intercepting keys meant for dialogs
+func (m Model) hasActiveDialog() bool {
+	// Check Commands tab dialogs
+	if m.activeTab == TabCommands {
+		if m.commands.formDialog != nil && m.commands.formDialog.IsVisible() {
+			return true
+		}
+		if m.commands.confirmDialog != nil && m.commands.confirmDialog.IsVisible() {
+			return true
+		}
+		if m.commands.progressView != nil && m.commands.progressView.IsVisible() {
+			return true
+		}
+	}
+
+	// Check Files tab dialogs
+	if m.activeTab == TabFiles {
+		if m.files.encryptDialog.IsVisible() {
+			return true
+		}
+		if m.files.filtering || m.files.showGoto {
+			return true
+		}
+	}
+
+	return false
 }

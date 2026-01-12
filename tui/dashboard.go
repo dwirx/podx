@@ -234,29 +234,44 @@ func (m DashboardModel) renderNoProject() string {
 func (m DashboardModel) renderDashboard() string {
 	var sections []string
 
+	// Calculate responsive card widths
+	cardWidth := (m.width - 6) / 2
+	if cardWidth < 35 {
+		cardWidth = 35
+	}
+	if cardWidth > 50 {
+		cardWidth = 50
+	}
+
 	// Update notification at top if available
 	if m.updateInfo != nil && m.updateInfo.Available {
-		updateCard := m.renderUpdateNotification()
+		updateCard := m.renderUpdateNotification(cardWidth * 2)
 		sections = append(sections, updateCard)
 	}
 
 	// Create horizontal layout with project info and security status side by side
-	projectCard := m.renderProjectInfo()
-	securityCard := m.renderSecurityStatus()
+	projectCard := m.renderProjectInfoWithWidth(cardWidth)
+	securityCard := m.renderSecurityStatusWithWidth(cardWidth)
 
 	// Join cards horizontally if there's enough width
-	topRow := lipgloss.JoinHorizontal(lipgloss.Top, projectCard, securityCard)
-	sections = append(sections, topRow)
+	if m.width > 80 {
+		topRow := lipgloss.JoinHorizontal(lipgloss.Top, projectCard, securityCard)
+		sections = append(sections, topRow)
+	} else {
+		// Stack vertically on narrow terminals
+		sections = append(sections, projectCard)
+		sections = append(sections, securityCard)
+	}
 
 	// Quick actions below
-	actionsCard := m.renderQuickActions()
+	actionsCard := m.renderQuickActionsWithWidth(cardWidth * 2)
 	sections = append(sections, actionsCard)
 
 	return lipgloss.JoinVertical(lipgloss.Left, sections...)
 }
 
 // renderUpdateNotification renders the update notification banner
-func (m DashboardModel) renderUpdateNotification() string {
+func (m DashboardModel) renderUpdateNotification(width int) string {
 	var lines []string
 
 	lines = append(lines, WarningStyle.Render("[!] Update Available"))
@@ -271,17 +286,28 @@ func (m DashboardModel) renderUpdateNotification() string {
 	lines = append(lines, "")
 	lines = append(lines, MutedStyle.Render("  Run 'podx update' to upgrade"))
 
-	return CardStyle.Render(strings.Join(lines, "\n"))
+	style := CardStyle.Copy().Width(width)
+	return style.Render(strings.Join(lines, "\n"))
 }
 
 // renderProjectInfo renders project information
 func (m DashboardModel) renderProjectInfo() string {
+	return m.renderProjectInfoWithWidth(0)
+}
+
+// renderProjectInfoWithWidth renders project information with specified width
+func (m DashboardModel) renderProjectInfoWithWidth(width int) string {
 	var lines []string
 
 	lines = append(lines, CardTitleStyle.Render("[~] Project Info"))
 
-	// Path
-	lines = append(lines, fmt.Sprintf("  Path:    %s", MutedStyle.Render(m.project.RootDir)))
+	// Path - truncate if too long
+	path := m.project.RootDir
+	maxPathLen := width - 12
+	if maxPathLen > 0 && len(path) > maxPathLen {
+		path = "..." + path[len(path)-maxPathLen+3:]
+	}
+	lines = append(lines, fmt.Sprintf("  Path:    %s", MutedStyle.Render(path)))
 
 	// Backend
 	lines = append(lines, fmt.Sprintf("  Backend: %s", SuccessStyle.Render(m.project.Config.Backend)))
@@ -305,18 +331,31 @@ func (m DashboardModel) renderProjectInfo() string {
 		lines = append(lines, MutedStyle.Render(fmt.Sprintf("    - %s", s)))
 	}
 
-	return CardStyle.Render(strings.Join(lines, "\n"))
+	style := CardStyle.Copy()
+	if width > 0 {
+		style = style.Width(width)
+	}
+	return style.Render(strings.Join(lines, "\n"))
 }
 
 // renderSecurityStatus renders the security check status
 func (m DashboardModel) renderSecurityStatus() string {
+	return m.renderSecurityStatusWithWidth(0)
+}
+
+// renderSecurityStatusWithWidth renders the security check status with specified width
+func (m DashboardModel) renderSecurityStatusWithWidth(width int) string {
 	var lines []string
 
 	lines = append(lines, CardTitleStyle.Render("[#] Security Status"))
 
 	if m.checkResult == nil {
 		lines = append(lines, MutedStyle.Render("  Checking..."))
-		return CardStyle.Render(strings.Join(lines, "\n"))
+		style := CardStyle.Copy()
+		if width > 0 {
+			style = style.Width(width)
+		}
+		return style.Render(strings.Join(lines, "\n"))
 	}
 
 	// Overall status with badge
@@ -363,11 +402,20 @@ func (m DashboardModel) renderSecurityStatus() string {
 		lines = append(lines, WarningStyle.Render("  [--] Hook not installed"))
 	}
 
-	return CardStyle.Render(strings.Join(lines, "\n"))
+	style := CardStyle.Copy()
+	if width > 0 {
+		style = style.Width(width)
+	}
+	return style.Render(strings.Join(lines, "\n"))
 }
 
 // renderQuickActions renders the quick actions menu
 func (m DashboardModel) renderQuickActions() string {
+	return m.renderQuickActionsWithWidth(0)
+}
+
+// renderQuickActionsWithWidth renders the quick actions menu with specified width
+func (m DashboardModel) renderQuickActionsWithWidth(width int) string {
 	var lines []string
 
 	lines = append(lines, CardTitleStyle.Render("[>] Quick Actions"))
@@ -386,7 +434,11 @@ func (m DashboardModel) renderQuickActions() string {
 		}
 	}
 
-	return CardStyle.Render(strings.Join(lines, "\n"))
+	style := CardStyle.Copy()
+	if width > 0 {
+		style = style.Width(width)
+	}
+	return style.Render(strings.Join(lines, "\n"))
 }
 
 // SetSize updates the model dimensions

@@ -403,7 +403,7 @@ func (m FormDialogModel) GetValues() map[string]string {
 	return values
 }
 
-// CenterDialog centers a dialog in the terminal
+// CenterDialog centers a dialog in the terminal with a proper background overlay
 func CenterDialog(dialog string, termWidth, termHeight int) string {
 	lines := strings.Split(dialog, "\n")
 	dialogHeight := len(lines)
@@ -425,19 +425,43 @@ func CenterDialog(dialog string, termWidth, termHeight int) string {
 		leftPadding = 0
 	}
 
+	// Create a fullscreen background with the dialog centered
+	bgStyle := lipgloss.NewStyle().
+		Width(termWidth).
+		Height(termHeight).
+		Background(ColorBg)
+
 	var result strings.Builder
+
+	// Fill top padding with blank lines
+	blankLine := strings.Repeat(" ", termWidth)
 	for i := 0; i < topPadding; i++ {
+		result.WriteString(blankLine)
 		result.WriteString("\n")
 	}
 
+	// Render dialog lines with left padding
 	leftPad := strings.Repeat(" ", leftPadding)
 	for _, line := range lines {
+		lineWidth := lipgloss.Width(line)
+		rightPad := strings.Repeat(" ", termWidth-leftPadding-lineWidth)
+		if rightPad == "" || len(rightPad) < 0 {
+			rightPad = ""
+		}
 		result.WriteString(leftPad)
 		result.WriteString(line)
+		result.WriteString(rightPad)
 		result.WriteString("\n")
 	}
 
-	return result.String()
+	// Fill remaining height
+	remaining := termHeight - topPadding - dialogHeight
+	for i := 0; i < remaining; i++ {
+		result.WriteString(blankLine)
+		result.WriteString("\n")
+	}
+
+	return bgStyle.Render(result.String())
 }
 
 // CreateFormForCommand creates appropriate form for a command
