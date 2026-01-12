@@ -405,6 +405,14 @@ func (m FormDialogModel) GetValues() map[string]string {
 
 // CenterDialog centers a dialog in the terminal with a proper background overlay
 func CenterDialog(dialog string, termWidth, termHeight int) string {
+	// Ensure minimum dimensions
+	if termWidth < 80 {
+		termWidth = 80
+	}
+	if termHeight < 20 {
+		termHeight = 20
+	}
+
 	lines := strings.Split(dialog, "\n")
 	dialogHeight := len(lines)
 	dialogWidth := 0
@@ -425,43 +433,48 @@ func CenterDialog(dialog string, termWidth, termHeight int) string {
 		leftPadding = 0
 	}
 
-	// Create a fullscreen background with the dialog centered
+	// Create background style
 	bgStyle := lipgloss.NewStyle().
-		Width(termWidth).
-		Height(termHeight).
-		Background(ColorBg)
+		Background(ColorBg).
+		Foreground(ColorWhite)
 
 	var result strings.Builder
 
 	// Fill top padding with blank lines
-	blankLine := strings.Repeat(" ", termWidth)
+	blankLine := bgStyle.Render(strings.Repeat(" ", termWidth))
 	for i := 0; i < topPadding; i++ {
 		result.WriteString(blankLine)
 		result.WriteString("\n")
 	}
 
-	// Render dialog lines with left padding
+	// Render dialog lines with left padding and right padding to fill width
 	leftPad := strings.Repeat(" ", leftPadding)
 	for _, line := range lines {
 		lineWidth := lipgloss.Width(line)
-		rightPad := strings.Repeat(" ", termWidth-leftPadding-lineWidth)
-		if rightPad == "" || len(rightPad) < 0 {
-			rightPad = ""
+		rightPadLen := termWidth - leftPadding - lineWidth
+		if rightPadLen < 0 {
+			rightPadLen = 0
 		}
-		result.WriteString(leftPad)
+		rightPad := strings.Repeat(" ", rightPadLen)
+
+		// Combine: left background + dialog content + right background
+		result.WriteString(bgStyle.Render(leftPad))
 		result.WriteString(line)
-		result.WriteString(rightPad)
+		result.WriteString(bgStyle.Render(rightPad))
 		result.WriteString("\n")
 	}
 
 	// Fill remaining height
 	remaining := termHeight - topPadding - dialogHeight
+	if remaining < 0 {
+		remaining = 0
+	}
 	for i := 0; i < remaining; i++ {
 		result.WriteString(blankLine)
 		result.WriteString("\n")
 	}
 
-	return bgStyle.Render(result.String())
+	return result.String()
 }
 
 // CreateFormForCommand creates appropriate form for a command

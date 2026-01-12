@@ -125,9 +125,19 @@ func LoadAgeIdentity() (string, error) {
 	}
 
 	keyFile := filepath.Join(configDir, ageKeysFile)
+	identity, err := parseAgeIdentityFromFile(keyFile)
+	if err == nil {
+		return identity, nil
+	}
+
+	return "", fmt.Errorf("no age identity found in %s. Generate with 'podx keygen -t age'", keyFile)
+}
+
+// parseAgeIdentityFromFile parses an Age identity from a key file
+func parseAgeIdentityFromFile(keyFile string) (string, error) {
 	data, err := os.ReadFile(keyFile)
 	if err != nil {
-		return "", fmt.Errorf("failed to read age key file: %w", err)
+		return "", err
 	}
 
 	// Parse the key file - find the last valid identity
@@ -148,19 +158,36 @@ func LoadAgeIdentity() (string, error) {
 }
 
 // LoadAgeRecipient loads the Age public key from config
+// It first tries the dedicated recipients file, then falls back to parsing age-keys.txt
 func LoadAgeRecipient() (string, error) {
 	configDir, err := GetConfigDir()
 	if err != nil {
 		return "", err
 	}
 
+	// Try the dedicated public key file first
 	pubKeyFile := filepath.Join(configDir, ageRecipientsDir, "default.txt")
-	data, err := os.ReadFile(pubKeyFile)
-	if err != nil {
-		return "", fmt.Errorf("failed to read age public key: %w", err)
+	if data, err := os.ReadFile(pubKeyFile); err == nil {
+		return strings.TrimSpace(string(data)), nil
 	}
 
-	return strings.TrimSpace(string(data)), nil
+	// Fallback: parse public key from age-keys.txt
+	keyFile := filepath.Join(configDir, ageKeysFile)
+	if data, err := os.ReadFile(keyFile); err == nil {
+		lines := strings.Split(string(data), "\n")
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			// Look for "# public key: age1..."
+			if strings.HasPrefix(line, "# public key:") {
+				pubKey := strings.TrimSpace(strings.TrimPrefix(line, "# public key:"))
+				if strings.HasPrefix(pubKey, "age1") {
+					return pubKey, nil
+				}
+			}
+		}
+	}
+
+	return "", fmt.Errorf("no age public key found. Generate with 'podx keygen -t age'")
 }
 
 // PrintKeygenResult displays the key generation result in a beautiful box
@@ -233,4 +260,31 @@ func printRow(label, value string, width int) {
 	}
 
 	fmt.Printf("║ %s%s║\n", content, strings.Repeat(" ", width-len(content)-1))
+}
+
+// GetKeyInfo returns information about the current Age key configuration
+type KeyInfo struct {
+	PublicKey   string
+	KeyFilePath string
+	HasKey      bool
+}
+
+// GetAgeKeyInfo returns information about the current Age key configuration
+func GetAgeKeyInfo() KeyInfo {
+	info := KeyInfo{}
+
+	// Try to load public key
+	pubKey, err := LoadAgeRecipient()
+	if err == nil {
+		info.PublicKey = pubKey
+		info.HasKey = true
+	}
+
+	// Get key file path
+	configDir, err := GetConfigDir()
+	if err == nil {
+		info.KeyFilePath = filepath.Join(configDir, ageKeysFile)
+	}
+
+	return info
 }

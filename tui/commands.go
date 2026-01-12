@@ -192,6 +192,11 @@ func GetAllCommands() []list.Item {
 			description: "Show version info",
 			category:    "System", args: []string{"version"},
 		},
+		CommandItem{
+			id: "key-info", name: "key-info",
+			description: "Show your Age public key",
+			category:    "Keys", args: []string{"key-info"},
+		},
 	}
 }
 

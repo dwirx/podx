@@ -525,6 +525,15 @@ func PrintInitSuccess(p *Project) {
 	fmt.Printf("║ %-68s ║\n", fmt.Sprintf("Secrets: %s", strings.Join(p.Config.Secrets, ", ")))
 
 	fmt.Printf("╠%s╣\n", strings.Repeat("═", width))
+
+	// Show your public key prominently
+	keyInfo := keygen.GetAgeKeyInfo()
+	if keyInfo.HasKey {
+		fmt.Printf("║ %-68s ║\n", "🔑 Your Public Key (share with your team):")
+		fmt.Printf("║   %-66s ║\n", keyInfo.PublicKey)
+		fmt.Printf("║%s║\n", strings.Repeat(" ", width))
+	}
+
 	fmt.Printf("║ %-68s ║\n", "Next steps:")
 	fmt.Printf("║   %-66s ║\n", "1. Add recipients: podx add-recipient -n 'Name' -k age1...")
 	fmt.Printf("║   %-66s ║\n", "2. Encrypt secrets: podx encrypt-all")

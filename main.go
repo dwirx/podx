@@ -82,6 +82,8 @@ func main() {
 		handleEnv(os.Args[2], os.Args[3:])
 	case "keygen":
 		handleKeygen(os.Args[2:])
+	case "key-info":
+		handleKeyInfo()
 	case "update":
 		handleUpdate(os.Args[2:])
 	case "rollback":
@@ -112,6 +114,7 @@ FILE COMMANDS:
   decrypt    Decrypt a single file
   env        Encrypt/decrypt .env file (format-preserving)
   keygen     Generate Age or GPG key pair
+  key-info   Show your Age public key
 
 OTHER:
   check      Check for unencrypted secrets
@@ -468,6 +471,49 @@ func handleKeygen(args []string) {
 		fmt.Printf("Unknown key type: %s (supported: age, gpg)\n", *keyType)
 		os.Exit(1)
 	}
+}
+
+func handleKeyInfo() {
+	info := keygen.GetAgeKeyInfo()
+
+	width := 70
+	fmt.Printf("╔%s╗\n", strings.Repeat("═", width))
+	fmt.Printf("║%s║\n", centerText("🔑 Your Age Key Information", width))
+	fmt.Printf("╠%s╣\n", strings.Repeat("═", width))
+
+	if info.HasKey {
+		printBoxRow("Status:", "✓ Key found", width)
+		printBoxRow("Key file:", info.KeyFilePath, width)
+		fmt.Printf("╠%s╣\n", strings.Repeat("═", width))
+		printBoxRow("Public Key (share with team):", "", width)
+		printBoxRow("  "+info.PublicKey, "", width)
+	} else {
+		printBoxRow("Status:", "✗ No key found", width)
+		printBoxRow("", "", width)
+		printBoxRow("Generate a new key with:", "podx keygen -t age", width)
+	}
+
+	fmt.Printf("╚%s╝\n", strings.Repeat("═", width))
+}
+
+func centerText(text string, width int) string {
+	padding := (width - len(text)) / 2
+	if padding < 0 {
+		padding = 0
+	}
+	return fmt.Sprintf("%s%s%s", strings.Repeat(" ", padding), text, strings.Repeat(" ", width-padding-len(text)))
+}
+
+func printBoxRow(label, value string, width int) {
+	content := label
+	if value != "" {
+		content = label + " " + value
+	}
+	// Truncate if too long
+	if len(content) > width-2 {
+		content = content[:width-5] + "..."
+	}
+	fmt.Printf("║ %s%s║\n", content, strings.Repeat(" ", width-len(content)-1))
 }
 
 // Project commands
