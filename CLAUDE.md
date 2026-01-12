@@ -45,19 +45,29 @@ Test files follow Go conventions:
 podx                          # Launch interactive TUI
 ```
 
-The TUI provides three tabs:
+The TUI provides four tabs:
 - **Dashboard** - Project status, encryption status, recipients, quick actions
 - **Commands** - Interactive menu to run any podx command
 - **Security** - Live security check with detailed results
+- **Files** - File browser with encryption/decryption capabilities
 
 Navigation:
-- `Tab` / `1,2,3` - Switch tabs
+- `Tab` / `1,2,3,4` - Switch tabs
 - `↑↓` / `j,k` - Navigate up/down
 - `←→` / `h,l` - Back/Select
 - `Enter` - Confirm action
 - `r` - Refresh data
 - `?` - Help overlay
 - `q` - Quit
+
+Files Tab:
+- `Space` - Toggle file selection
+- `a` - Select/deselect all files
+- `e` - Encrypt selected files
+- `d` - Decrypt selected files
+- `p` - Toggle preview panel
+- `g` - Go to path (directory input)
+- `/` - Filter files
 
 The `tui/` package uses:
 - `bubbletea` - TUI framework (Elm architecture)
@@ -124,7 +134,8 @@ main.go              CLI entry point, command routing, flag parsing
 │   ├── dashboard.go Dashboard tab (project info, quick actions)
 │   ├── commands.go  Commands tab (interactive menu)
 │   ├── security.go  Security tab (check results)
-│   ├── styles.go    Lipgloss styles
+│   ├── files.go     Files tab (file browser, encrypt/decrypt)
+│   ├── styles.go    Lipgloss styles (Dracula-inspired palette)
 │   └── keys.go      Key bindings
 ```
 
