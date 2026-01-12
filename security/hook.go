@@ -13,7 +13,7 @@ const hookScript = `#!/bin/sh
 # PODX pre-commit hook
 # Installed by: podx hook install
 
-if ! command -v podx &> /dev/null; then
+if ! command -v podx > /dev/null 2>&1; then
     echo "Error: podx not found in PATH"
     exit 1
 fi
