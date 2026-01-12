@@ -116,3 +116,87 @@ func TestWriteEnvFile(t *testing.T) {
 		t.Errorf("unexpected output:\n%s", content)
 	}
 }
+
+func TestEncryptDecryptEnvValues(t *testing.T) {
+	// Create test key
+	key := make([]byte, 32)
+	for i := range key {
+		key[i] = byte(i)
+	}
+
+	entries := []EnvEntry{
+		{IsComment: true, Comment: "# Header"},
+		{Key: "SECRET1", Value: "password123"},
+		{Key: "SECRET2", Value: "api-key-456"},
+	}
+
+	// Encrypt
+	if err := EncryptEnvValues(entries, key, "aes-gcm"); err != nil {
+		t.Fatalf("EncryptEnvValues error: %v", err)
+	}
+
+	// Verify encryption
+	if !entries[1].Encrypted {
+		t.Error("SECRET1 should be encrypted")
+	}
+	if entries[1].Algorithm != "aes-gcm" {
+		t.Error("SECRET1 should use aes-gcm")
+	}
+	if entries[1].Value == "password123" {
+		t.Error("SECRET1 value should be encrypted")
+	}
+
+	// Comment should be unchanged
+	if !entries[0].IsComment {
+		t.Error("comment should remain a comment")
+	}
+
+	// Save encrypted value to verify already-encrypted entries are skipped
+	encryptedValue := entries[1].Value
+
+	// Try to encrypt again - already encrypted should be unchanged
+	if err := EncryptEnvValues(entries, key, "aes-gcm"); err != nil {
+		t.Fatalf("EncryptEnvValues (second call) error: %v", err)
+	}
+	if entries[1].Value != encryptedValue {
+		t.Error("already encrypted value should not change on re-encryption")
+	}
+
+	// Decrypt
+	if err := DecryptEnvValues(entries, key); err != nil {
+		t.Fatalf("DecryptEnvValues error: %v", err)
+	}
+
+	// Verify decryption
+	if entries[1].Encrypted {
+		t.Error("SECRET1 should be decrypted")
+	}
+	if entries[1].Value != "password123" {
+		t.Errorf("SECRET1 = %q, want %q", entries[1].Value, "password123")
+	}
+	if entries[2].Value != "api-key-456" {
+		t.Errorf("SECRET2 = %q, want %q", entries[2].Value, "api-key-456")
+	}
+}
+
+func TestEncryptEnvValuesInvalidAlgo(t *testing.T) {
+	key := make([]byte, 32)
+	entries := []EnvEntry{{Key: "K", Value: "V"}}
+
+	err := EncryptEnvValues(entries, key, "invalid-algo")
+	if err == nil {
+		t.Error("expected error for invalid algorithm")
+	}
+}
+
+func TestDecryptEnvValuesInvalidBase64(t *testing.T) {
+	key := make([]byte, 32)
+	entries := []EnvEntry{
+		{Key: "K", Value: "not-valid-base64!!!", Encrypted: true, Algorithm: "aes-gcm"},
+	}
+
+	err := DecryptEnvValues(entries, key)
+	if err == nil {
+		t.Error("expected error for invalid base64")
+	}
+}
