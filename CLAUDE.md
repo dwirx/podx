@@ -39,6 +39,24 @@ Test files follow Go conventions:
 - `crypto/crypto_test.go` - Encryptor interface tests
 - `parser/env_test.go` - .env file parsing and encryption tests
 
+## Security Features
+
+```bash
+podx check                    # Run all security checks
+podx check --fix              # Auto-fix gitignore issues
+podx check --pre-commit       # Silent mode for git hooks
+podx hook install             # Install pre-commit hook
+podx hook uninstall           # Remove pre-commit hook
+podx hook status              # Check if hook is installed
+```
+
+The `security/` package provides:
+- `patterns.go` - Secret pattern detection (AWS keys, passwords, API keys, connection strings)
+- `scanner.go` - File scanning with binary detection and directory exclusions
+- `gitignore.go` - Gitignore validation and automatic fixing
+- `check.go` - Main check command logic combining all validators
+- `hook.go` - Pre-commit hook installation and management
+
 ## Running the CLI
 
 ```bash
@@ -68,8 +86,14 @@ main.go              CLI entry point, command routing, flag parsing
 │   └── env.go       Parse .env → EnvEntry[], encrypt values only (KEY=ENC[...])
 ├── keygen/          Key generation utilities
 │   └── keygen.go    Age/GPG key generation, key storage (~/.config/podx/)
-└── updater/         Self-update mechanism
-    └── updater.go   GitHub releases check/download
+├── updater/         Self-update mechanism
+│   └── updater.go   GitHub releases check/download
+└── security/        Security checks and pre-commit hook
+    ├── patterns.go  Secret pattern detection regex
+    ├── scanner.go   File scanning for secrets
+    ├── gitignore.go Gitignore validation/fixing
+    ├── check.go     Check command logic
+    └── hook.go      Pre-commit hook management
 ```
 
 ## Key Patterns
