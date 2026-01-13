@@ -28,7 +28,8 @@ const (
 	StateSelectMethod DialogState = iota
 	StatePasswordInput
 	StateAgeKeyConfirm
-	StateAddRecipient // New state for adding recipient
+	StateAddRecipient  // New state for adding recipient
+	StateGenerateKey   // State for generating a new key pair
 	StateProcessing
 	StateComplete
 	StateError
@@ -55,6 +56,11 @@ type EncryptDialogModel struct {
 	// Add recipient fields
 	recipientName textinput.Model
 	recipientKey  textinput.Model
+
+	// Generated key fields
+	generatedPublicKey  string
+	generatedPrivateKey string
+	generatingKey       bool
 }
 
 // encryptCompleteMsg is sent when encryption is complete
