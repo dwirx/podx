@@ -70,6 +70,15 @@ type encryptCompleteMsg struct {
 	files   int
 }
 
+// keygenCompleteMsg is sent when key generation completes
+type keygenCompleteMsg struct {
+	success    bool
+	publicKey  string
+	privateKey string
+	keyFile    string
+	errorMsg   string
+}
+
 // NewEncryptDialogModel creates a new encrypt dialog model
 func NewEncryptDialogModel() EncryptDialogModel {
 	password := textinput.New()
