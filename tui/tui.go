@@ -294,6 +294,11 @@ func (m Model) View() string {
 		return "Loading..."
 	}
 
+	// Show warning for very small terminals
+	if m.width < MinTerminalWidth || m.height < MinTerminalHeight {
+		return m.renderSizeWarning()
+	}
+
 	// Help overlay takes precedence
 	if m.showHelp {
 		return m.renderHelp()
@@ -396,17 +401,27 @@ func (m Model) renderHeader() string {
 func (m Model) renderTabs() string {
 	var tabs []string
 
+	// Short names for small terminals
+	shortNames := []string{"Dash", "Cmd", "Sec", "Files", "Log"}
+	useShortNames := m.width < SmallWidth
+
 	for i, name := range tabNames {
 		// Tab number indicator
 		tabNum := tabShortcuts[i]
 
+		// Use short name on small terminals
+		displayName := name
+		if useShortNames {
+			displayName = shortNames[i]
+		}
+
 		if i == m.activeTab {
 			// Active tab - highlighted with ASCII brackets
-			tabLabel := fmt.Sprintf("[%s:%s]", tabNum, name)
+			tabLabel := fmt.Sprintf("[%s:%s]", tabNum, displayName)
 			tabs = append(tabs, TabActiveStyle.Render(tabLabel))
 		} else {
 			// Inactive tab
-			tabLabel := fmt.Sprintf(" %s:%s ", tabNum, name)
+			tabLabel := fmt.Sprintf(" %s:%s ", tabNum, displayName)
 			tabs = append(tabs, TabInactiveStyle.Render(tabLabel))
 		}
 	}
@@ -414,7 +429,7 @@ func (m Model) renderTabs() string {
 	tabBar := lipgloss.JoinHorizontal(lipgloss.Top, tabs...)
 
 	// Add ASCII separator line below tabs
-	separator := DividerStyle.Render(strings.Repeat("=", m.width))
+	separator := DividerStyle.Render(strings.Repeat("═", m.width))
 
 	return lipgloss.JoinVertical(lipgloss.Left, tabBar, separator)
 }
@@ -456,6 +471,22 @@ func (m Model) renderLogsTab() string {
 	content.WriteString(MutedStyle.Render("  [j/k] Navigate  [g] Go to top  [G] Go to bottom"))
 
 	return BoxStyle.Render(content.String())
+}
+
+// renderSizeWarning renders a warning for terminals that are too small
+func (m Model) renderSizeWarning() string {
+	var s strings.Builder
+
+	s.WriteString(WarningStyle.Render("⚠ Terminal Too Small"))
+	s.WriteString("\n\n")
+	s.WriteString(fmt.Sprintf("Current: %dx%d\n", m.width, m.height))
+	s.WriteString(fmt.Sprintf("Minimum: %dx%d\n", MinTerminalWidth, MinTerminalHeight))
+	s.WriteString("\n")
+	s.WriteString(MutedStyle.Render("Please resize your terminal"))
+	s.WriteString("\n")
+	s.WriteString(MutedStyle.Render("or press 'q' to quit"))
+
+	return BoxStyle.Render(s.String())
 }
 
 // renderHelp renders the help overlay with ASCII style
