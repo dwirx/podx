@@ -20,6 +20,7 @@ const (
 	ActionDecryptAll
 	ActionCheck
 	ActionHookInstall
+	ActionKeygen
 )
 
 // DashboardModel represents the dashboard tab content
@@ -73,6 +74,7 @@ func NewDashboardModel() DashboardModel {
 			"Decrypt All",
 			"Run Check",
 			"Install Hook",
+			"Generate Key",
 		},
 		selected: 0,
 		cwd:      cwd,
@@ -147,6 +149,18 @@ func (m DashboardModel) executeAction(action int) tea.Cmd {
 				return actionResultMsg{action: action, success: false, message: err.Error()}
 			}
 			return actionResultMsg{action: action, success: true, message: "Hook installed successfully"}
+
+		case ActionKeygen:
+			result, err := keygen.GenerateAge()
+			if err != nil {
+				return actionResultMsg{action: action, success: false, message: err.Error()}
+			}
+			// Show truncated public key
+			pubKey := result.PublicKey
+			if len(pubKey) > 30 {
+				pubKey = pubKey[:30] + "..."
+			}
+			return actionResultMsg{action: action, success: true, message: fmt.Sprintf("Generated key: %s", pubKey)}
 		}
 		return nil
 	}
@@ -440,12 +454,13 @@ func (m DashboardModel) renderQuickActionsWithWidth(width int) string {
 	lines = append(lines, MutedStyle.Render("  Use j/k to navigate, Enter to execute"))
 	lines = append(lines, "")
 
-	actionIcons := []string{"E", "D", "C", "H"}
+	actionIcons := []string{"E", "D", "C", "H", "K"}
 	actionDescs := []string{
 		"Encrypt all secret files",
 		"Decrypt all secret files",
 		"Run security checks",
 		"Install pre-commit hook",
+		"Generate new Age key pair",
 	}
 
 	for i, action := range m.actions {
