@@ -43,6 +43,7 @@ type DashboardModel struct {
 type projectLoadedMsg struct {
 	project *project.Project
 	err     error
+	keyInfo keygen.KeyInfo
 }
 
 // checkCompletedMsg is sent when security check completes
@@ -99,7 +100,8 @@ func (m DashboardModel) checkForUpdates() tea.Msg {
 // loadProject loads the project configuration
 func (m DashboardModel) loadProject() tea.Msg {
 	proj, err := project.Load(m.cwd)
-	return projectLoadedMsg{project: proj, err: err}
+	keyInfo := keygen.GetAgeKeyInfo()
+	return projectLoadedMsg{project: proj, err: err, keyInfo: keyInfo}
 }
 
 // runSecurityCheck performs a security check on the project
@@ -157,6 +159,7 @@ func (m DashboardModel) Update(msg tea.Msg) (DashboardModel, tea.Cmd) {
 		m.loading = false
 		m.project = msg.project
 		m.err = msg.err
+		m.keyInfo = msg.keyInfo
 		if m.project != nil {
 			// Project loaded, run security check
 			return m, m.runSecurityCheck
