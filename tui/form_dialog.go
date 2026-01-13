@@ -356,10 +356,11 @@ func (m FormDialogModel) View() string {
 	help := "Tab/↓: next • Shift+Tab/↑: prev • Enter: next/submit • Esc: cancel"
 	content.WriteString(helpStyle.Render(help))
 
-	// Dialog box style with PODX theme
+	// Dialog box style with PODX theme and solid background
 	dialogStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(ColorPrimary).
+		Background(ColorBg).
 		Padding(1, 3).
 		Width(70)
 

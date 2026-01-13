@@ -163,10 +163,11 @@ func (m ConfirmDialogModel) View() string {
 	help := "y: confirm | n/Esc: cancel | Tab/h/l: switch | Enter: select"
 	content.WriteString(helpStyle.Render(help))
 
-	// Dialog box style with warning border
+	// Dialog box style with warning border and solid background
 	dialogStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(ColorWarning).
+		Background(ColorBg).
 		Padding(1, 2).
 		Width(60)
 

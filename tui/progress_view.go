@@ -160,7 +160,7 @@ func (m ProgressViewModel) View() string {
 		content.WriteString(helpStyle.Render("Press Enter or Esc to close"))
 	}
 
-	// Box style
+	// Box style with solid background
 	borderColor := ColorPrimary
 	if m.complete && !m.success {
 		borderColor = ColorError
@@ -169,6 +169,7 @@ func (m ProgressViewModel) View() string {
 	dialogStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(borderColor).
+		Background(ColorBg).
 		Padding(1, 2).
 		Width(60)
 

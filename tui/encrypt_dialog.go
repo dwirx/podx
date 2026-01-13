@@ -596,12 +596,13 @@ func (m EncryptDialogModel) View() string {
 		content = m.renderError()
 	}
 
-	// Dialog box styling
+	// Dialog box styling with solid background
 	dialogStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(ColorPrimary).
+		Background(ColorBg).
 		Padding(1, 2).
-		Width(56)
+		Width(60)
 
 	return dialogStyle.Render(content)
 }
@@ -767,7 +768,8 @@ func (m EncryptDialogModel) renderAgeKeyConfirm() string {
 			s.WriteString(fmt.Sprintf("%s (%s)\n", r.Name, keyPreview))
 		}
 	} else {
-		s.WriteString(WarningStyle.Render("⚠ No recipients configured\n"))
+		s.WriteString(WarningStyle.Render("⚠ No recipients configured"))
+		s.WriteString("\n")
 		s.WriteString(MutedStyle.Render("  Run 'podx add-recipient' to add keys"))
 	}
 	s.WriteString("\n")
