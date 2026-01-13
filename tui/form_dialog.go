@@ -404,31 +404,6 @@ func (m FormDialogModel) GetValues() map[string]string {
 	return values
 }
 
-// CenterDialog centers a dialog in the terminal with a proper background overlay
-func CenterDialog(dialog string, termWidth, termHeight int) string {
-	// Ensure minimum dimensions
-	if termWidth < 80 {
-		termWidth = 80
-	}
-	if termHeight < 24 {
-		termHeight = 24
-	}
-
-	// Use lipgloss.Place to center the dialog with a background
-	// This properly handles ANSI escape codes and centering
-	overlay := lipgloss.Place(
-		termWidth,
-		termHeight,
-		lipgloss.Center,
-		lipgloss.Center,
-		dialog,
-		lipgloss.WithWhitespaceBackground(ColorBg),
-		lipgloss.WithWhitespaceForeground(ColorBg),
-	)
-
-	return overlay
-}
-
 // CreateFormForCommand creates appropriate form for a command
 func CreateFormForCommand(commandID string) *FormDialogModel {
 	switch commandID {

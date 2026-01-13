@@ -226,7 +226,7 @@ func (m DashboardModel) Update(msg tea.Msg) (DashboardModel, tea.Cmd) {
 // View renders the dashboard model
 func (m DashboardModel) View() string {
 	if m.loading {
-		return BoxStyle.Render("Loading...")
+		return BoxStyle.Render(RenderSpinner(0) + " Loading...")
 	}
 
 	if m.err != nil {
@@ -239,12 +239,14 @@ func (m DashboardModel) View() string {
 // renderNoProject renders the view when no project is found
 func (m DashboardModel) renderNoProject() string {
 	content := []string{
-		ErrorStyle.Render("No project found"),
+		"",
+		ErrorStyle.Render("[!!] No project found"),
 		"",
 		MutedStyle.Render("This directory is not a PODX project."),
 		MutedStyle.Render("Run 'podx init' to initialize a new project."),
 		"",
 		MutedStyle.Render(fmt.Sprintf("Path: %s", m.cwd)),
+		"",
 	}
 	return BoxStyle.Render(strings.Join(content, "\n"))
 }
@@ -295,7 +297,7 @@ func (m DashboardModel) renderUpdateNotification(width int) string {
 
 	lines = append(lines, WarningStyle.Render("[!] Update Available"))
 	lines = append(lines, "")
-	lines = append(lines, fmt.Sprintf("  New version: %s → %s", m.updateInfo.CurrentVersion, m.updateInfo.LatestVersion))
+	lines = append(lines, fmt.Sprintf("  New version: %s -> %s", m.updateInfo.CurrentVersion, m.updateInfo.LatestVersion))
 	if m.updateInfo.DownloadSize > 0 {
 		lines = append(lines, fmt.Sprintf("  Size: %s", updater.FormatSize(m.updateInfo.DownloadSize)))
 	}

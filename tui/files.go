@@ -731,38 +731,42 @@ func (m FilesModel) View() string {
 	return m.renderFileBrowser()
 }
 
-// getFileIcon returns an appropriate icon for the file type
+// getFileIcon returns an appropriate ASCII icon for the file type
 func getFileIcon(file FileInfo) string {
 	if file.Name == ".." {
-		return "\U0001F4C2" // Open folder
+		return "[..]"
 	}
 	if file.IsDir {
-		return "\U0001F4C1" // Closed folder
+		return "[D]"
 	}
 	if file.IsEncrypted {
-		return "\U0001F512" // Lock
+		return "[*]"
 	}
 
 	ext := strings.ToLower(filepath.Ext(file.Name))
 	switch ext {
 	case ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".ico", ".svg", ".webp":
-		return "\U0001F5BC" // Image (framed picture)
+		return "[I]" // Image
 	case ".zip", ".tar", ".gz", ".7z", ".rar", ".bz2", ".xz":
-		return "\U0001F4E6" // Package
+		return "[Z]" // Archive
 	case ".go", ".py", ".js", ".ts", ".rs", ".c", ".cpp", ".java", ".rb":
-		return "\U0001F4DD" // Code memo
+		return "[C]" // Code
 	case ".md", ".txt", ".doc", ".docx", ".pdf":
-		return "\U0001F4C3" // Document
+		return "[T]" // Text
 	case ".json", ".yaml", ".yml", ".toml", ".xml", ".ini", ".conf":
-		return "\U00002699" // Gear (config)
+		return "[=]" // Config
 	case ".mp3", ".wav", ".ogg", ".flac":
-		return "\U0001F3B5" // Music note
+		return "[M]" // Music
 	case ".mp4", ".avi", ".mov", ".mkv", ".webm":
-		return "\U0001F3AC" // Clapper board
+		return "[V]" // Video
 	case ".sh", ".bash", ".zsh", ".fish":
-		return "\U0001F4BB" // Computer
+		return "[$]" // Shell
+	case ".env":
+		return "[E]" // Env file
+	case ".podx":
+		return "[*]" // Encrypted
 	default:
-		return "\U0001F4C4" // Generic document
+		return "[F]" // Generic file
 	}
 }
 
@@ -796,7 +800,7 @@ func getFileColor(file FileInfo) lipgloss.Color {
 	}
 }
 
-// renderBreadcrumbs renders the path as breadcrumbs
+// renderBreadcrumbs renders the path as ASCII breadcrumbs
 func (m FilesModel) renderBreadcrumbs() string {
 	parts := strings.Split(m.cwd, string(filepath.Separator))
 	var crumbs []string
@@ -808,9 +812,9 @@ func (m FilesModel) renderBreadcrumbs() string {
 		}
 		if i == len(parts)-1 {
 			// Current directory - highlight it
-			crumbs = append(crumbs, TitleStyle.Render(part))
+			crumbs = append(crumbs, BreadcrumbActiveStyle.Render(part))
 		} else {
-			crumbs = append(crumbs, MutedStyle.Render(part))
+			crumbs = append(crumbs, BreadcrumbStyle.Render(part))
 		}
 		if i < len(parts)-1 {
 			crumbs = append(crumbs, MutedStyle.Render("/"))
@@ -853,7 +857,7 @@ func (m FilesModel) renderFileBrowser() string {
 		mainContent = lipgloss.JoinHorizontal(
 			lipgloss.Top,
 			filePanel,
-			MutedStyle.Render(" \u2502 "), // Vertical separator
+			MutedStyle.Render(" | "), // Vertical separator
 			previewPanel,
 		)
 	} else {
@@ -868,12 +872,12 @@ func (m FilesModel) renderFileListPanel(width int) string {
 	var lines []string
 
 	// Header with breadcrumb path
-	pathIcon := "\U0001F4C1" // Folder
+	pathIcon := "[DIR]"
 	header := TitleStyle.Render(fmt.Sprintf("%s %s", pathIcon, m.renderBreadcrumbs()))
 	lines = append(lines, header)
 
 	// Separator
-	separator := strings.Repeat("\u2500", min(width-4, 50))
+	separator := strings.Repeat("-", min(width-4, 50))
 	lines = append(lines, MutedStyle.Render(separator))
 
 	// Goto input if active
@@ -998,9 +1002,9 @@ func (m FilesModel) renderFileLine(file FileInfo, selected bool, maxWidth int) s
 	// Selection indicator
 	var selectionMark string
 	if m.selectedFiles[file.Path] {
-		selectionMark = "\u2713 " // Checkmark
+		selectionMark = "[X] " // Checkmark
 	} else {
-		selectionMark = "  "
+		selectionMark = "[ ] "
 	}
 
 	// Cursor indicator
