@@ -407,6 +407,19 @@ func (m DashboardModel) renderSecurityStatusWithWidth(width int) string {
 		lines = append(lines, WarningStyle.Render("  [--] No pre-commit hook"))
 	}
 
+	// Local key status
+	if m.keyInfo.HasKey {
+		keyPreview := m.keyInfo.PublicKey
+		if len(keyPreview) > 20 {
+			keyPreview = keyPreview[:20] + "..."
+		}
+		lines = append(lines, SuccessStyle.Render("  [OK] Local Age key"))
+		lines = append(lines, MutedStyle.Render(fmt.Sprintf("       %s", keyPreview)))
+	} else {
+		lines = append(lines, WarningStyle.Render("  [--] No local Age key"))
+		lines = append(lines, MutedStyle.Render("       Press [K] to generate"))
+	}
+
 	style := CardStyle.Copy()
 	if width > 0 {
 		style = style.Width(width)
