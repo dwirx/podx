@@ -796,6 +796,8 @@ func (m EncryptDialogModel) View() string {
 		content = m.renderAgeKeyConfirm()
 	case StateAddRecipient:
 		content = m.renderAddRecipient()
+	case StateGenerateKey:
+		content = m.renderGenerateKey()
 	case StateProcessing:
 		content = m.renderProcessing()
 	case StateComplete:
@@ -1049,6 +1051,72 @@ func (m EncryptDialogModel) renderAddRecipient() string {
 
 	// Footer
 	s.WriteString(MutedStyle.Render("[Enter] Add  [G] Generate key  [Tab] Next  [Esc] Cancel"))
+
+	return s.String()
+}
+
+// renderGenerateKey renders the key generation view
+func (m EncryptDialogModel) renderGenerateKey() string {
+	var s strings.Builder
+
+	s.WriteString(TitleStyle.Render("Generate Age Key Pair"))
+	s.WriteString("\n\n")
+
+	if m.generatingKey {
+		s.WriteString("Generating key pair...\n")
+		s.WriteString(MutedStyle.Render("Please wait..."))
+		return s.String()
+	}
+
+	if m.generatedPublicKey != "" {
+		// Show generated key
+		s.WriteString(SuccessStyle.Render("Key generated successfully!"))
+		s.WriteString("\n\n")
+
+		s.WriteString(CardTitleStyle.Render("Public Key:"))
+		s.WriteString("\n")
+		// Wrap long key
+		pubKey := m.generatedPublicKey
+		if len(pubKey) > 50 {
+			s.WriteString("  " + pubKey[:50] + "\n")
+			s.WriteString("  " + pubKey[50:])
+		} else {
+			s.WriteString("  " + pubKey)
+		}
+		s.WriteString("\n\n")
+
+		s.WriteString(CardTitleStyle.Render("Private Key:"))
+		s.WriteString("\n")
+		privKey := m.generatedPrivateKey
+		if len(privKey) > 50 {
+			s.WriteString("  " + privKey[:50] + "\n")
+			s.WriteString("  " + privKey[50:])
+		} else {
+			s.WriteString("  " + privKey)
+		}
+		s.WriteString("\n\n")
+
+		s.WriteString(WarningStyle.Render("Keys saved to ~/.config/podx/"))
+		s.WriteString("\n\n")
+
+		s.WriteString(MutedStyle.Render("[Enter] Use this key  [Esc] Back"))
+	} else {
+		// Confirmation prompt
+		s.WriteString("This will generate a new Age X25519 key pair.\n\n")
+
+		s.WriteString("The keys will be saved to:\n")
+		s.WriteString(MutedStyle.Render("  ~/.config/podx/age-keys.txt (private)\n"))
+		s.WriteString(MutedStyle.Render("  ~/.config/podx/age-recipients/default.txt (public)\n"))
+		s.WriteString("\n")
+
+		if m.errorMsg != "" {
+			s.WriteString(ErrorStyle.Render("Error: " + m.errorMsg))
+			s.WriteString("\n\n")
+		}
+
+		s.WriteString("Generate new key pair?\n\n")
+		s.WriteString(MutedStyle.Render("[Y/Enter] Generate  [N/Esc] Cancel"))
+	}
 
 	return s.String()
 }
