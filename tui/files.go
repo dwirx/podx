@@ -731,42 +731,58 @@ func (m FilesModel) View() string {
 	return m.renderFileBrowser()
 }
 
-// getFileIcon returns an appropriate ASCII icon for the file type
+// getFileIcon returns an appropriate icon for the file type
 func getFileIcon(file FileInfo) string {
 	if file.Name == ".." {
-		return "[..]"
+		return "📁"
 	}
 	if file.IsDir {
-		return "[D]"
+		return "📂"
 	}
 	if file.IsEncrypted {
-		return "[*]"
+		return "🔒"
 	}
 
 	ext := strings.ToLower(filepath.Ext(file.Name))
 	switch ext {
 	case ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".ico", ".svg", ".webp":
-		return "[I]" // Image
+		return "🖼️"
 	case ".zip", ".tar", ".gz", ".7z", ".rar", ".bz2", ".xz":
-		return "[Z]" // Archive
-	case ".go", ".py", ".js", ".ts", ".rs", ".c", ".cpp", ".java", ".rb":
-		return "[C]" // Code
-	case ".md", ".txt", ".doc", ".docx", ".pdf":
-		return "[T]" // Text
+		return "📦"
+	case ".go":
+		return "🔷"
+	case ".py":
+		return "🐍"
+	case ".js", ".ts":
+		return "⚡"
+	case ".rs":
+		return "🦀"
+	case ".c", ".cpp", ".h", ".hpp":
+		return "⚙️"
+	case ".java":
+		return "☕"
+	case ".rb":
+		return "💎"
+	case ".md":
+		return "📝"
+	case ".txt", ".doc", ".docx", ".pdf":
+		return "📄"
 	case ".json", ".yaml", ".yml", ".toml", ".xml", ".ini", ".conf":
-		return "[=]" // Config
+		return "⚙️"
 	case ".mp3", ".wav", ".ogg", ".flac":
-		return "[M]" // Music
+		return "🎵"
 	case ".mp4", ".avi", ".mov", ".mkv", ".webm":
-		return "[V]" // Video
+		return "🎬"
 	case ".sh", ".bash", ".zsh", ".fish":
-		return "[$]" // Shell
+		return "💻"
 	case ".env":
-		return "[E]" // Env file
+		return "🔐"
 	case ".podx":
-		return "[*]" // Encrypted
+		return "🔒"
+	case ".html", ".css":
+		return "🌐"
 	default:
-		return "[F]" // Generic file
+		return "📄"
 	}
 }
 
