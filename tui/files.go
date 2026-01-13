@@ -842,38 +842,62 @@ func (m FilesModel) renderBreadcrumbs() string {
 
 // renderFileBrowser renders the full file browser view
 func (m FilesModel) renderFileBrowser() string {
-	// Calculate widths
+	// Get terminal size category
+	termSize := GetTerminalSize(m.width)
+
+	// Calculate widths based on terminal size
 	totalWidth := m.width - 6 // Account for borders and padding
-	if totalWidth < 60 {
-		totalWidth = 60
+	if totalWidth < MinTerminalWidth-6 {
+		totalWidth = MinTerminalWidth - 6
 	}
 
 	var fileListWidth int
 	var previewWidth int
-	if m.showPreview {
-		fileListWidth = (totalWidth * 60) / 100
-		previewWidth = totalWidth - fileListWidth - 3 // Account for separator
-	} else {
+
+	switch termSize {
+	case TerminalSmall:
+		// Disable preview on small terminals
 		fileListWidth = totalWidth
 		previewWidth = 0
+	case TerminalMedium:
+		if m.showPreview {
+			fileListWidth = (totalWidth * 65) / 100
+			previewWidth = totalWidth - fileListWidth - 3
+		} else {
+			fileListWidth = totalWidth
+		}
+	default:
+		// Large terminal
+		if m.showPreview {
+			fileListWidth = (totalWidth * 60) / 100
+			previewWidth = totalWidth - fileListWidth - 3
+			// Cap preview width for readability
+			if previewWidth > 60 {
+				previewWidth = 60
+				fileListWidth = totalWidth - previewWidth - 3
+			}
+		} else {
+			fileListWidth = totalWidth
+		}
 	}
 
 	// Build the file list panel
 	filePanel := m.renderFileListPanel(fileListWidth)
 
-	// Build the preview panel if enabled
+	// Build the preview panel if enabled and there's space
 	var previewPanel string
-	if m.showPreview {
+	shouldShowPreview := m.showPreview && previewWidth > 15 && termSize != TerminalSmall
+	if shouldShowPreview {
 		previewPanel = m.renderPreviewPanel(previewWidth)
 	}
 
 	// Combine panels
 	var mainContent string
-	if m.showPreview && previewWidth > 10 {
+	if shouldShowPreview {
 		mainContent = lipgloss.JoinHorizontal(
 			lipgloss.Top,
 			filePanel,
-			MutedStyle.Render(" | "), // Vertical separator
+			MutedStyle.Render(" │ "), // Better vertical separator
 			previewPanel,
 		)
 	} else {
@@ -945,8 +969,15 @@ func (m FilesModel) renderFileListPanel(width int) string {
 		lines = append(lines, m.msgStyle.Render(m.message))
 	}
 
-	// Footer with keybindings
-	footer := MutedStyle.Render("[j/k] Nav  [Enter] Open  [e] Encrypt  [d] Decrypt  [g] Go to  [/] Filter  [Space] Select  [p] Preview  [q] Back")
+	// Footer with keybindings - responsive based on width
+	var footer string
+	if m.width >= MediumWidth {
+		footer = MutedStyle.Render("[j/k] Nav  [Enter] Open  [e] Encrypt  [d] Decrypt  [g] Goto  [/] Filter  [Space] Select  [p] Preview  [q] Back")
+	} else if m.width >= SmallWidth {
+		footer = MutedStyle.Render("[j/k] Nav [e/d] Enc/Dec [Space] Sel [p] Preview [q] Back")
+	} else {
+		footer = MutedStyle.Render("[j/k] [e/d] [Space] [q]")
+	}
 	lines = append(lines, footer)
 
 	return strings.Join(lines, "\n")
