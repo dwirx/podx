@@ -28,6 +28,7 @@ const (
 	StateSelectMethod DialogState = iota
 	StatePasswordInput
 	StateAgeKeyConfirm
+	StateAddRecipient // New state for adding recipient
 	StateProcessing
 	StateComplete
 	StateError
@@ -50,6 +51,10 @@ type EncryptDialogModel struct {
 	width        int
 	height       int
 	isDecrypt    bool // true for decryption mode
+
+	// Add recipient fields
+	recipientName textinput.Model
+	recipientKey  textinput.Model
 }
 
 // encryptCompleteMsg is sent when encryption is complete
@@ -73,12 +78,22 @@ func NewEncryptDialogModel() EncryptDialogModel {
 	confirmPass.EchoCharacter = '•'
 	confirmPass.CharLimit = 128
 
+	recipientName := textinput.New()
+	recipientName.Placeholder = "e.g. John Doe"
+	recipientName.CharLimit = 64
+
+	recipientKey := textinput.New()
+	recipientKey.Placeholder = "age1xxxxxxxxxx..."
+	recipientKey.CharLimit = 256
+
 	return EncryptDialogModel{
-		visible:     false,
-		state:       StateSelectMethod,
-		method:      MethodPassword,
-		password:    password,
-		confirmPass: confirmPass,
+		visible:       false,
+		state:         StateSelectMethod,
+		method:        MethodPassword,
+		password:      password,
+		confirmPass:   confirmPass,
+		recipientName: recipientName,
+		recipientKey:  recipientKey,
 	}
 }
 
@@ -174,6 +189,8 @@ func (m EncryptDialogModel) Update(msg tea.Msg) (EncryptDialogModel, tea.Cmd) {
 			return m.updatePasswordInput(msg)
 		case StateAgeKeyConfirm:
 			return m.updateAgeKeyConfirm(msg)
+		case StateAddRecipient:
+			return m.updateAddRecipient(msg)
 		case StateComplete, StateError:
 			// Any key closes the dialog
 			if msg.String() == "enter" || msg.String() == "esc" || msg.String() == " " {
@@ -305,6 +322,15 @@ func (m EncryptDialogModel) updateAgeKeyConfirm(msg tea.KeyMsg) (EncryptDialogMo
 	switch msg.String() {
 	case "esc":
 		m.state = StateSelectMethod
+	case "a", "A":
+		// Add recipient shortcut
+		m.state = StateAddRecipient
+		m.recipientName.SetValue("")
+		m.recipientKey.SetValue("")
+		m.focusedInput = 0
+		m.recipientName.Focus()
+		m.errorMsg = ""
+		return m, textinput.Blink
 	case "enter":
 		if m.project == nil {
 			m.errorMsg = "No PODX project found. Run 'podx init' first"
@@ -312,9 +338,14 @@ func (m EncryptDialogModel) updateAgeKeyConfirm(msg tea.KeyMsg) (EncryptDialogMo
 			return m, nil
 		}
 		if len(m.project.Config.Recipients) == 0 {
-			m.errorMsg = "No recipients configured. Add with 'podx add-recipient'"
-			m.state = StateError
-			return m, nil
+			// No recipients - offer to add one
+			m.state = StateAddRecipient
+			m.recipientName.SetValue("")
+			m.recipientKey.SetValue("")
+			m.focusedInput = 0
+			m.recipientName.Focus()
+			m.errorMsg = ""
+			return m, textinput.Blink
 		}
 		m.state = StateProcessing
 		if m.isDecrypt {
@@ -322,6 +353,88 @@ func (m EncryptDialogModel) updateAgeKeyConfirm(msg tea.KeyMsg) (EncryptDialogMo
 		}
 		return m, m.doEncryptAge()
 	}
+	return m, nil
+}
+
+// updateAddRecipient handles the add recipient state
+func (m EncryptDialogModel) updateAddRecipient(msg tea.KeyMsg) (EncryptDialogModel, tea.Cmd) {
+	switch msg.String() {
+	case "esc":
+		m.state = StateAgeKeyConfirm
+		m.recipientName.Blur()
+		m.recipientKey.Blur()
+		m.errorMsg = ""
+		return m, nil
+
+	case "tab", "down":
+		if m.focusedInput == 0 {
+			m.focusedInput = 1
+			m.recipientName.Blur()
+			m.recipientKey.Focus()
+		} else {
+			m.focusedInput = 0
+			m.recipientKey.Blur()
+			m.recipientName.Focus()
+		}
+		return m, textinput.Blink
+
+	case "shift+tab", "up":
+		if m.focusedInput == 1 {
+			m.focusedInput = 0
+			m.recipientKey.Blur()
+			m.recipientName.Focus()
+			return m, textinput.Blink
+		}
+
+	case "enter":
+		name := strings.TrimSpace(m.recipientName.Value())
+		key := strings.TrimSpace(m.recipientKey.Value())
+
+		// Validate
+		if name == "" {
+			m.errorMsg = "Name is required"
+			return m, nil
+		}
+		if key == "" {
+			m.errorMsg = "Age public key is required"
+			return m, nil
+		}
+		if !strings.HasPrefix(key, "age1") {
+			m.errorMsg = "Invalid Age key (must start with 'age1')"
+			return m, nil
+		}
+
+		// Add recipient to project
+		if m.project != nil {
+			m.project.Config.Recipients = append(m.project.Config.Recipients, project.Recipient{
+				Name: name,
+				Key:  key,
+			})
+			// Save config
+			if err := m.project.Save(); err != nil {
+				m.errorMsg = "Failed to save: " + err.Error()
+				return m, nil
+			}
+		}
+
+		m.successMsg = fmt.Sprintf("Added recipient: %s", name)
+		m.state = StateAgeKeyConfirm
+		m.recipientName.Blur()
+		m.recipientKey.Blur()
+		m.errorMsg = ""
+		return m, nil
+
+	default:
+		var cmd tea.Cmd
+		if m.focusedInput == 0 {
+			m.recipientName, cmd = m.recipientName.Update(msg)
+		} else {
+			m.recipientKey, cmd = m.recipientKey.Update(msg)
+		}
+		m.errorMsg = "" // Clear error on typing
+		return m, cmd
+	}
+
 	return m, nil
 }
 
@@ -588,6 +701,8 @@ func (m EncryptDialogModel) View() string {
 		content = m.renderPasswordInput()
 	case StateAgeKeyConfirm:
 		content = m.renderAgeKeyConfirm()
+	case StateAddRecipient:
+		content = m.renderAddRecipient()
 	case StateProcessing:
 		content = m.renderProcessing()
 	case StateComplete:
@@ -767,10 +882,15 @@ func (m EncryptDialogModel) renderAgeKeyConfirm() string {
 			s.WriteString(SuccessStyle.Render("  ✓ "))
 			s.WriteString(fmt.Sprintf("%s (%s)\n", r.Name, keyPreview))
 		}
+		s.WriteString("\n")
+		s.WriteString(MutedStyle.Render("  Press [A] to add more recipients"))
 	} else {
 		s.WriteString(WarningStyle.Render("⚠ No recipients configured"))
-		s.WriteString("\n")
-		s.WriteString(MutedStyle.Render("  Run 'podx add-recipient' to add keys"))
+		s.WriteString("\n\n")
+		s.WriteString("  Press ")
+		s.WriteString(lipgloss.NewStyle().Foreground(ColorPrimary).Bold(true).Render("[A]"))
+		s.WriteString(" to add a recipient now\n")
+		s.WriteString(MutedStyle.Render("  or run 'podx add-recipient' from terminal"))
 	}
 	s.WriteString("\n")
 
@@ -780,7 +900,62 @@ func (m EncryptDialogModel) renderAgeKeyConfirm() string {
 	s.WriteString("\n\n")
 
 	// Footer
-	s.WriteString(MutedStyle.Render(fmt.Sprintf("[Enter] %s  [Esc] Back", action)))
+	s.WriteString(MutedStyle.Render(fmt.Sprintf("[Enter] %s  [A] Add recipient  [Esc] Back", action)))
+
+	return s.String()
+}
+
+// renderAddRecipient renders the add recipient form
+func (m EncryptDialogModel) renderAddRecipient() string {
+	var s strings.Builder
+
+	s.WriteString(TitleStyle.Render("➕ Add Recipient"))
+	s.WriteString("\n\n")
+
+	s.WriteString("Add a team member who can decrypt your files.\n\n")
+
+	// Name input
+	nameLabel := "Name:     "
+	if m.focusedInput == 0 {
+		nameLabel = lipgloss.NewStyle().Foreground(ColorPrimary).Bold(true).Render("Name:     ")
+	}
+	s.WriteString(nameLabel)
+	s.WriteString(m.recipientName.View())
+	s.WriteString("\n\n")
+
+	// Key input
+	keyLabel := "Age Key:  "
+	if m.focusedInput == 1 {
+		keyLabel = lipgloss.NewStyle().Foreground(ColorPrimary).Bold(true).Render("Age Key:  ")
+	}
+	s.WriteString(keyLabel)
+	s.WriteString(m.recipientKey.View())
+	s.WriteString("\n")
+
+	// Success message
+	if m.successMsg != "" {
+		s.WriteString("\n")
+		s.WriteString(SuccessStyle.Render("✓ " + m.successMsg))
+		s.WriteString("\n")
+	}
+
+	// Error message
+	if m.errorMsg != "" {
+		s.WriteString("\n")
+		s.WriteString(ErrorStyle.Render("⚠ " + m.errorMsg))
+		s.WriteString("\n")
+	}
+
+	s.WriteString("\n")
+
+	// Help text
+	s.WriteString(MutedStyle.Render("Age public keys start with 'age1...'"))
+	s.WriteString("\n")
+	s.WriteString(MutedStyle.Render("Generate a key pair with: podx keygen -t age"))
+	s.WriteString("\n\n")
+
+	// Footer
+	s.WriteString(MutedStyle.Render("[Enter] Add  [Tab] Next field  [Esc] Cancel"))
 
 	return s.String()
 }
