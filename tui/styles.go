@@ -253,12 +253,12 @@ func RenderDoubleDivider(width int) string {
 
 // CenterDialog centers a dialog within the terminal dimensions
 func CenterDialog(dialog string, termWidth, termHeight int) string {
-	// Ensure minimum dimensions
-	if termWidth < 80 {
-		termWidth = 80
+	// Use actual terminal dimensions, with reasonable minimums
+	if termWidth < MinTerminalWidth {
+		termWidth = MinTerminalWidth
 	}
-	if termHeight < 24 {
-		termHeight = 24
+	if termHeight < MinTerminalHeight {
+		termHeight = MinTerminalHeight
 	}
 
 	// Use lipgloss.Place to center the dialog with a background
@@ -385,4 +385,69 @@ func RenderBox(title, content string, width int) string {
 	}
 
 	return style.Render(content)
+}
+
+// Terminal size breakpoints
+const (
+	MinTerminalWidth  = 60
+	MinTerminalHeight = 20
+	SmallWidth        = 80
+	MediumWidth       = 120
+	LargeWidth        = 160
+)
+
+// TerminalSize represents the terminal size category
+type TerminalSize int
+
+const (
+	TerminalSmall TerminalSize = iota
+	TerminalMedium
+	TerminalLarge
+)
+
+// GetTerminalSize returns the terminal size category based on width
+func GetTerminalSize(width int) TerminalSize {
+	if width < SmallWidth {
+		return TerminalSmall
+	}
+	if width < MediumWidth {
+		return TerminalMedium
+	}
+	return TerminalLarge
+}
+
+// ResponsiveWidth calculates width based on percentage and constraints
+func ResponsiveWidth(totalWidth, percentage, minWidth, maxWidth int) int {
+	width := (totalWidth * percentage) / 100
+	if width < minWidth {
+		return minWidth
+	}
+	if maxWidth > 0 && width > maxWidth {
+		return maxWidth
+	}
+	return width
+}
+
+// TruncateText truncates text to fit within width, adding ellipsis if needed
+func TruncateText(text string, maxWidth int) string {
+	if len(text) <= maxWidth {
+		return text
+	}
+	if maxWidth <= 3 {
+		return text[:maxWidth]
+	}
+	return text[:maxWidth-3] + "..."
+}
+
+// AdaptiveColumns returns the number of columns based on terminal width
+func AdaptiveColumns(width int) int {
+	size := GetTerminalSize(width)
+	switch size {
+	case TerminalSmall:
+		return 1
+	case TerminalMedium:
+		return 2
+	default:
+		return 3
+	}
 }
