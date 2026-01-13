@@ -367,6 +367,35 @@ func (m EncryptDialogModel) updateAgeKeyConfirm(msg tea.KeyMsg) (EncryptDialogMo
 		m.recipientName.Focus()
 		m.errorMsg = ""
 		return m, textinput.Blink
+	case "m", "M":
+		// Load and use my own key as recipient
+		pubKey, err := keygen.LoadAgeRecipient()
+		if err != nil {
+			m.errorMsg = "No key found. Press [A] then [G] to generate one."
+			return m, nil
+		}
+		// Check project exists
+		if m.project == nil {
+			m.errorMsg = "No PODX project found. Run 'podx init' first"
+			return m, nil
+		}
+		// Check if already added
+		for _, r := range m.project.Config.Recipients {
+			if r.Key == pubKey {
+				m.successMsg = "Your key is already added as recipient"
+				return m, nil
+			}
+		}
+		m.project.Config.Recipients = append(m.project.Config.Recipients, project.Recipient{
+			Name: "Me (local)",
+			Key:  pubKey,
+		})
+		if err := m.project.Save(); err != nil {
+			m.errorMsg = "Failed to save: " + err.Error()
+			return m, nil
+		}
+		m.successMsg = "Added your local key as recipient"
+		return m, nil
 	case "enter":
 		if m.project == nil {
 			m.errorMsg = "No PODX project found. Run 'podx init' first"
@@ -995,7 +1024,7 @@ func (m EncryptDialogModel) renderAgeKeyConfirm() string {
 	s.WriteString("\n\n")
 
 	// Footer
-	s.WriteString(MutedStyle.Render(fmt.Sprintf("[Enter] %s  [A] Add recipient  [Esc] Back", action)))
+	s.WriteString(MutedStyle.Render(fmt.Sprintf("[Enter] %s  [M] My key  [A] Add recipient  [Esc] Back", action)))
 
 	return s.String()
 }
