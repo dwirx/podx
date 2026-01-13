@@ -853,13 +853,19 @@ func (m EncryptDialogModel) View() string {
 		content = m.renderError()
 	}
 
-	// Dialog box styling with solid background
+	// Dialog box styling with responsive width
+	dialogWidth := 60
+	if m.width > 0 {
+		// Calculate responsive dialog width
+		dialogWidth = ResponsiveWidth(m.width, 70, 50, 80)
+	}
+
 	dialogStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(ColorPrimary).
 		Background(ColorBg).
 		Padding(1, 2).
-		Width(60)
+		Width(dialogWidth)
 
 	return dialogStyle.Render(content)
 }
@@ -1005,19 +1011,33 @@ func (m EncryptDialogModel) renderAgeKeyConfirm() string {
 	s.WriteString(TitleStyle.Render(fmt.Sprintf("%s Age Key %s", icon, action)))
 	s.WriteString("\n\n")
 
-	// File info with more detail
+	// File info with responsive display
 	s.WriteString(lipgloss.NewStyle().Bold(true).Render("Files:"))
 	s.WriteString("\n")
+
+	// Show fewer files on smaller terminals
+	maxFilesToShow := 3
+	if m.width > 0 && m.width < SmallWidth {
+		maxFilesToShow = 2
+	}
+
 	for i, file := range m.files {
-		if i >= 3 {
-			s.WriteString(MutedStyle.Render(fmt.Sprintf("  ... and %d more\n", len(m.files)-3)))
+		if i >= maxFilesToShow {
+			s.WriteString(MutedStyle.Render(fmt.Sprintf("  ... and %d more\n", len(m.files)-maxFilesToShow)))
 			break
 		}
 		fileIcon := "📄"
 		if file.IsEncrypted {
 			fileIcon = "🔒"
 		}
-		s.WriteString(fmt.Sprintf("  %s %s\n", fileIcon, file.Name))
+		// Truncate filename if needed
+		fileName := file.Name
+		maxNameLen := 40
+		if m.width > 0 && m.width < SmallWidth {
+			maxNameLen = 25
+		}
+		fileName = TruncateText(fileName, maxNameLen)
+		s.WriteString(fmt.Sprintf("  %s %s\n", fileIcon, fileName))
 	}
 	s.WriteString("\n")
 
