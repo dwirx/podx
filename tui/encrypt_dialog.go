@@ -782,11 +782,20 @@ func (m EncryptDialogModel) doDecryptAge() tea.Cmd {
 				continue
 			}
 
+			// Delete the encrypted .podx file after successful decryption
+			if err := os.Remove(file.Path); err != nil {
+				// Non-fatal: decryption succeeded but cleanup failed
+				lastErr = err
+			}
+
 			successCount++
 		}
 
-		if successCount == 0 && lastErr != nil {
-			return encryptCompleteMsg{success: false, message: fmt.Sprintf("Decryption failed: %v", lastErr)}
+		if successCount == 0 {
+			if lastErr != nil {
+				return encryptCompleteMsg{success: false, message: fmt.Sprintf("Decryption failed: %v", lastErr)}
+			}
+			return encryptCompleteMsg{success: false, message: "No encrypted files to decrypt"}
 		}
 
 		return encryptCompleteMsg{
