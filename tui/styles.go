@@ -2,18 +2,20 @@ package tui
 
 import "github.com/charmbracelet/lipgloss"
 
-// Colors - PODX color palette (Dracula-inspired)
+// Colors - PODX color palette (Modern dark theme)
 var (
 	// Primary colors
 	ColorPrimary   = lipgloss.Color("#00D4FF") // Bright cyan
-	ColorSecondary = lipgloss.Color("#7B68EE") // Medium slate blue
-	ColorAccent    = lipgloss.Color("#FF6B6B") // Coral red
+	ColorSecondary = lipgloss.Color("#BD93F9") // Purple
+	ColorAccent    = lipgloss.Color("#FF79C6") // Pink
 	ColorSuccess   = lipgloss.Color("#50FA7B") // Bright green
-	ColorWarning   = lipgloss.Color("#FFB86C") // Orange
+	ColorWarning   = lipgloss.Color("#F1FA8C") // Yellow
 	ColorError     = lipgloss.Color("#FF5555") // Red
 	ColorMuted     = lipgloss.Color("#6272A4") // Muted blue-gray
-	ColorBg        = lipgloss.Color("#282A36") // Dark background
-	ColorBgLight   = lipgloss.Color("#44475A") // Lighter background
+	ColorBg        = lipgloss.Color("#1E1E2E") // Dark background (Catppuccin Mocha)
+	ColorBgLight   = lipgloss.Color("#313244") // Lighter background
+	ColorBgDark    = lipgloss.Color("#11111B") // Darker background
+	ColorBorder    = lipgloss.Color("#45475A") // Border color
 
 	// Legacy aliases for compatibility
 	ColorCyan   = ColorPrimary
@@ -21,7 +23,7 @@ var (
 	ColorYellow = ColorWarning
 	ColorRed    = ColorError
 	ColorGray   = ColorMuted
-	ColorWhite  = lipgloss.Color("#F8F8F2")
+	ColorWhite  = lipgloss.Color("#CDD6F4") // Catppuccin text
 )
 
 // Styles - Reusable lipgloss styles
@@ -51,24 +53,22 @@ var (
 	// SelectedStyle for selected items in lists
 	SelectedStyle = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(ColorPrimary).
-			Background(ColorBgLight)
+			Foreground(lipgloss.Color("#1E1E2E")).
+			Background(ColorPrimary)
 
 	// BoxStyle for bordered containers
 	BoxStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
-			BorderForeground(ColorMuted).
+			BorderForeground(ColorBorder).
+			Background(ColorBg).
 			Padding(1, 2)
 
 	// TabActiveStyle for active tab
 	TabActiveStyle = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(ColorPrimary).
-			Background(ColorBgLight).
-			Padding(0, 2).
-			BorderStyle(lipgloss.Border{Bottom: "─"}).
-			BorderBottom(true).
-			BorderForeground(ColorPrimary)
+			Foreground(ColorBg).
+			Background(ColorPrimary).
+			Padding(0, 2)
 
 	// TabInactiveStyle for inactive tabs
 	TabInactiveStyle = lipgloss.NewStyle().
@@ -78,21 +78,21 @@ var (
 	// StatusBarStyle for the status bar at the bottom
 	StatusBarStyle = lipgloss.NewStyle().
 			Foreground(ColorWhite).
-			Background(ColorBgLight).
+			Background(ColorBgDark).
 			Padding(0, 1)
 
 	// HeaderStyle for the main header
 	HeaderStyle = lipgloss.NewStyle().
 			Bold(true).
 			Foreground(ColorPrimary).
-			Background(ColorBgLight).
-			Padding(0, 2).
-			MarginBottom(1)
+			Background(ColorBgDark).
+			Padding(0, 2)
 
 	// CardStyle for dashboard cards
 	CardStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
-			BorderForeground(ColorMuted).
+			BorderForeground(ColorBorder).
+			Background(ColorBg).
 			Padding(1, 2).
 			MarginRight(1)
 
@@ -108,30 +108,49 @@ var (
 
 	// BadgeSuccessStyle for success badges
 	BadgeSuccessStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("#000")).
+				Foreground(lipgloss.Color("#1E1E2E")).
 				Background(ColorSuccess).
-				Padding(0, 1)
+				Padding(0, 1).
+				Bold(true)
 
 	// BadgeWarningStyle for warning badges
 	BadgeWarningStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("#000")).
+				Foreground(lipgloss.Color("#1E1E2E")).
 				Background(ColorWarning).
-				Padding(0, 1)
+				Padding(0, 1).
+				Bold(true)
 
 	// BadgeErrorStyle for error badges
 	BadgeErrorStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#fff")).
 			Background(ColorError).
-			Padding(0, 1)
+			Padding(0, 1).
+			Bold(true)
 
 	// SectionStyle for content sections
 	SectionStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
-			BorderForeground(ColorMuted).
+			BorderForeground(ColorBorder).
+			Background(ColorBg).
 			Padding(1, 2).
 			MarginBottom(1)
 
 	// OverlayBgStyle for dialog overlays - dark semi-transparent background
 	OverlayBgStyle = lipgloss.NewStyle().
-			Background(ColorBg)
+			Background(ColorBgDark)
+
+	// TabBarStyle for the tab bar container
+	TabBarStyle = lipgloss.NewStyle().
+			Background(ColorBgLight).
+			Padding(0, 1).
+			MarginBottom(1)
+
+	// LogoStyle for the PODX logo
+	LogoStyle = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(ColorPrimary)
+
+	// DividerStyle for horizontal dividers
+	DividerStyle = lipgloss.NewStyle().
+			Foreground(ColorBorder)
 )

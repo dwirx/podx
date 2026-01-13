@@ -19,7 +19,7 @@ const (
 
 // Tab names with icons
 var tabNames = []string{"Dashboard", "Commands", "Security", "Files"}
-var tabIcons = []string{"[*]", "[>]", "[#]", "[@]"}
+var tabIcons = []string{" ", " ", " ", " "}
 
 // Model is the main TUI model
 type Model struct {
@@ -184,6 +184,11 @@ func (m Model) View() string {
 		return "Loading..."
 	}
 
+	// Help overlay takes precedence
+	if m.showHelp {
+		return m.renderHelp()
+	}
+
 	// If a fullscreen dialog is active, render only the dialog with full terminal dimensions
 	if m.hasFullscreenDialog() {
 		return m.renderFullscreenDialog()
@@ -197,16 +202,10 @@ func (m Model) View() string {
 
 	// Tabs
 	s.WriteString(m.renderTabs())
-	s.WriteString("\n\n")
+	s.WriteString("\n")
 
 	// Content
 	s.WriteString(m.renderContent())
-
-	// Help overlay
-	if m.showHelp {
-		s.WriteString("\n\n")
-		s.WriteString(m.renderHelp())
-	}
 
 	// Status bar (at the bottom)
 	s.WriteString("\n")
@@ -247,30 +246,48 @@ func (m Model) renderFullscreenDialog() string {
 
 // renderHeader renders the header section
 func (m Model) renderHeader() string {
-	icon := IconStyle.Render("[+]")
-	title := TitleStyle.Copy().MarginBottom(0).Render("PODX")
-	subtitle := MutedStyle.Render("Secure Encryption Tool")
-	version := MutedStyle.Render("v1.0")
+	// ASCII art logo - simple and clean
+	logo := LogoStyle.Render("PODX")
+	subtitle := MutedStyle.Render(" Secure Encryption Tool")
+	version := MutedStyle.Render(" v1.0")
 
-	header := lipgloss.JoinHorizontal(lipgloss.Center,
-		icon, " ", title, " ", MutedStyle.Render("|"), " ", subtitle, " ", version)
+	header := lipgloss.JoinHorizontal(lipgloss.Center, logo, subtitle, version)
 
-	return HeaderStyle.Render(header)
+	// Full width header bar
+	headerBar := lipgloss.NewStyle().
+		Background(ColorBgDark).
+		Padding(0, 2).
+		Width(m.width).
+		Render(header)
+
+	return headerBar
 }
 
 // renderTabs renders the tab bar
 func (m Model) renderTabs() string {
 	var tabs []string
+
 	for i, name := range tabNames {
-		icon := tabIcons[i]
-		tabLabel := fmt.Sprintf(" %s %s ", icon, name)
+		// Tab number indicator
+		tabNum := fmt.Sprintf("%d", i+1)
+
 		if i == m.activeTab {
+			// Active tab - highlighted
+			tabLabel := fmt.Sprintf(" %s %s ", tabNum, name)
 			tabs = append(tabs, TabActiveStyle.Render(tabLabel))
 		} else {
+			// Inactive tab
+			tabLabel := fmt.Sprintf(" %s %s ", tabNum, name)
 			tabs = append(tabs, TabInactiveStyle.Render(tabLabel))
 		}
 	}
-	return lipgloss.JoinHorizontal(lipgloss.Top, tabs...)
+
+	tabBar := lipgloss.JoinHorizontal(lipgloss.Top, tabs...)
+
+	// Add separator line below tabs
+	separator := DividerStyle.Render(strings.Repeat("─", m.width))
+
+	return lipgloss.JoinVertical(lipgloss.Left, tabBar, separator)
 }
 
 // renderContent renders the active tab content
@@ -292,37 +309,62 @@ func (m Model) renderContent() string {
 // renderHelp renders the help overlay
 func (m Model) renderHelp() string {
 	helpText := []string{
-		"Keyboard Shortcuts:",
+		TitleStyle.Render("Keyboard Shortcuts"),
 		"",
-		"  Navigation:",
-		"    up/k      - Move up",
-		"    down/j    - Move down",
-		"    left/h    - Move left",
-		"    right/l   - Move right",
-		"    enter     - Select",
+		CardTitleStyle.Render("Navigation:"),
+		"  up/k        Move up",
+		"  down/j      Move down",
+		"  left/h      Move left / Back",
+		"  right/l     Move right / Select",
+		"  Enter       Confirm action",
 		"",
-		"  Tabs:",
-		"    tab       - Next tab",
-		"    shift+tab - Previous tab",
-		"    1/2/3/4   - Jump to tab",
+		CardTitleStyle.Render("Tabs:"),
+		"  Tab         Next tab",
+		"  Shift+Tab   Previous tab",
+		"  1/2/3/4     Jump to tab directly",
 		"",
-		"  Files Tab:",
-		"    e         - Encrypt file",
-		"    d         - Decrypt file",
-		"    /         - Filter files",
+		CardTitleStyle.Render("Files Tab:"),
+		"  e           Encrypt selected file(s)",
+		"  d           Decrypt selected file(s)",
+		"  Space       Toggle file selection",
+		"  a           Select/deselect all",
+		"  /           Filter files",
+		"  g           Go to path",
+		"  p           Toggle preview panel",
 		"",
-		"  Other:",
-		"    r         - Refresh",
-		"    ?         - Toggle help",
-		"    q/esc     - Quit",
+		CardTitleStyle.Render("General:"),
+		"  r           Refresh current view",
+		"  ?           Toggle this help",
+		"  q/Esc       Quit",
+		"",
+		MutedStyle.Render("Press any key to close..."),
 	}
 
-	return BoxStyle.Render(strings.Join(helpText, "\n"))
+	// Center the help dialog
+	helpContent := strings.Join(helpText, "\n")
+	helpBox := BoxStyle.Copy().
+		BorderForeground(ColorPrimary).
+		Width(50).
+		Render(helpContent)
+
+	return CenterDialog(helpBox, m.width, m.height)
 }
 
 // renderStatusBar renders the status bar at the bottom
 func (m Model) renderStatusBar() string {
-	status := fmt.Sprintf(" %s | Press ? for help | q to quit ", m.statusMsg)
+	// Left side - status message
+	statusLeft := fmt.Sprintf(" %s", m.statusMsg)
+
+	// Right side - help hint
+	statusRight := "? Help  q Quit "
+
+	// Calculate padding
+	padding := m.width - lipgloss.Width(statusLeft) - lipgloss.Width(statusRight)
+	if padding < 0 {
+		padding = 0
+	}
+
+	status := statusLeft + strings.Repeat(" ", padding) + statusRight
 	return StatusBarStyle.Width(m.width).Render(status)
 }
 

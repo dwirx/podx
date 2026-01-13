@@ -299,7 +299,7 @@ func (m DashboardModel) renderProjectInfo() string {
 func (m DashboardModel) renderProjectInfoWithWidth(width int) string {
 	var lines []string
 
-	lines = append(lines, CardTitleStyle.Render("[~] Project Info"))
+	lines = append(lines, CardTitleStyle.Render("Project Info"))
 
 	// Path - truncate if too long
 	path := m.project.RootDir
@@ -307,10 +307,10 @@ func (m DashboardModel) renderProjectInfoWithWidth(width int) string {
 	if maxPathLen > 0 && len(path) > maxPathLen {
 		path = "..." + path[len(path)-maxPathLen+3:]
 	}
-	lines = append(lines, fmt.Sprintf("  Path:    %s", MutedStyle.Render(path)))
+	lines = append(lines, fmt.Sprintf("  Path:       %s", MutedStyle.Render(path)))
 
 	// Backend
-	lines = append(lines, fmt.Sprintf("  Backend: %s", SuccessStyle.Render(m.project.Config.Backend)))
+	lines = append(lines, fmt.Sprintf("  Backend:    %s", SuccessStyle.Render(m.project.Config.Backend)))
 
 	// Recipients
 	recipientCount := len(m.project.Config.Recipients)
@@ -326,7 +326,7 @@ func (m DashboardModel) renderProjectInfoWithWidth(width int) string {
 
 	// Secrets patterns
 	secretCount := len(m.project.Config.Secrets)
-	lines = append(lines, fmt.Sprintf("  Secrets: %s patterns", SuccessStyle.Render(fmt.Sprintf("%d", secretCount))))
+	lines = append(lines, fmt.Sprintf("  Secrets:    %s patterns", SuccessStyle.Render(fmt.Sprintf("%d", secretCount))))
 	for _, s := range m.project.Config.Secrets {
 		lines = append(lines, MutedStyle.Render(fmt.Sprintf("    - %s", s)))
 	}
@@ -347,7 +347,7 @@ func (m DashboardModel) renderSecurityStatus() string {
 func (m DashboardModel) renderSecurityStatusWithWidth(width int) string {
 	var lines []string
 
-	lines = append(lines, CardTitleStyle.Render("[#] Security Status"))
+	lines = append(lines, CardTitleStyle.Render("Security Status"))
 
 	if m.checkResult == nil {
 		lines = append(lines, MutedStyle.Render("  Checking..."))
@@ -397,9 +397,9 @@ func (m DashboardModel) renderSecurityStatusWithWidth(width int) string {
 	// Hook status
 	hookInstalled := security.IsHookInstalled(m.cwd)
 	if hookInstalled {
-		lines = append(lines, SuccessStyle.Render("  [OK] Hook installed"))
+		lines = append(lines, SuccessStyle.Render("  [OK] Pre-commit hook"))
 	} else {
-		lines = append(lines, WarningStyle.Render("  [--] Hook not installed"))
+		lines = append(lines, WarningStyle.Render("  [--] No pre-commit hook"))
 	}
 
 	style := CardStyle.Copy()
@@ -418,19 +418,28 @@ func (m DashboardModel) renderQuickActions() string {
 func (m DashboardModel) renderQuickActionsWithWidth(width int) string {
 	var lines []string
 
-	lines = append(lines, CardTitleStyle.Render("[>] Quick Actions"))
+	lines = append(lines, CardTitleStyle.Render("Quick Actions"))
 	lines = append(lines, MutedStyle.Render("  Use j/k to navigate, Enter to execute"))
 	lines = append(lines, "")
 
-	actionIcons := []string{"[E]", "[D]", "[C]", "[H]"}
+	actionIcons := []string{"E", "D", "C", "H"}
+	actionDescs := []string{
+		"Encrypt all secret files",
+		"Decrypt all secret files",
+		"Run security checks",
+		"Install pre-commit hook",
+	}
 
 	for i, action := range m.actions {
 		icon := actionIcons[i]
+		desc := actionDescs[i]
 		if i == m.selected {
 			// Selected item with highlight
-			lines = append(lines, SelectedStyle.Render(fmt.Sprintf(" > %s %s ", icon, action)))
+			selectedLine := fmt.Sprintf("  > [%s] %s", icon, action)
+			lines = append(lines, SelectedStyle.Render(selectedLine))
+			lines = append(lines, MutedStyle.Render("       "+desc))
 		} else {
-			lines = append(lines, fmt.Sprintf("   %s %s", MutedStyle.Render(icon), action))
+			lines = append(lines, fmt.Sprintf("    [%s] %s", MutedStyle.Render(icon), action))
 		}
 	}
 
