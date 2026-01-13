@@ -489,7 +489,7 @@ func (m EncryptDialogModel) updateAddRecipient(msg tea.KeyMsg) (EncryptDialogMod
 		m.errorMsg = ""
 		return m, nil
 
-	case "g", "G":
+	case "ctrl+g":
 		// Switch to key generation state
 		m.state = StateGenerateKey
 		m.generatedPublicKey = ""
@@ -1088,7 +1088,7 @@ func (m EncryptDialogModel) renderAddRecipient() string {
 	s.WriteString("\n\n")
 
 	// Footer
-	s.WriteString(MutedStyle.Render("[Enter] Add  [G] Generate key  [Tab] Next  [Esc] Cancel"))
+	s.WriteString(MutedStyle.Render("[Enter] Add  [Ctrl+G] Generate key  [Tab] Next  [Esc] Cancel"))
 
 	return s.String()
 }
