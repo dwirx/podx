@@ -10,6 +10,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/hades/podx/crypto"
+	"github.com/hades/podx/keygen"
 	"github.com/hades/podx/project"
 )
 
@@ -697,6 +698,26 @@ func (m EncryptDialogModel) doDecryptAge() tea.Cmd {
 			success: true,
 			message: fmt.Sprintf("🔑 Decrypted %d file(s) with Age key", successCount),
 			files:   successCount,
+		}
+	}
+}
+
+// doGenerateKey generates a new Age key pair
+func (m EncryptDialogModel) doGenerateKey() tea.Cmd {
+	return func() tea.Msg {
+		result, err := keygen.GenerateAge()
+		if err != nil {
+			return keygenCompleteMsg{
+				success:  false,
+				errorMsg: err.Error(),
+			}
+		}
+
+		return keygenCompleteMsg{
+			success:    true,
+			publicKey:  result.PublicKey,
+			privateKey: result.PrivateKey,
+			keyFile:    result.KeyFile,
 		}
 	}
 }
