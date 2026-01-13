@@ -1,0 +1,8 @@
+# PODX Project Configuration
+# https://github.com/hades/podx
+
+version: 1
+backend: age
+recipients: []
+secrets:
+    - .env

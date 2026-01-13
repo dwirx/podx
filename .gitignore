@@ -32,3 +32,4 @@ test.*.env
 .env
 !.env.example
 *.podx.bak
+# PODX - Decrypted secrets (DO NOT COMMIT)
