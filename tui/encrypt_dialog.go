@@ -1038,56 +1038,77 @@ func (m EncryptDialogModel) renderAgeKeyConfirm() string {
 	return s.String()
 }
 
+// renderInputCursor returns a cursor indicator for input fields
+func (m EncryptDialogModel) renderInputCursor(inputIndex int) string {
+	if m.focusedInput == inputIndex {
+		return lipgloss.NewStyle().Foreground(ColorPrimary).Bold(true).Render(">")
+	}
+	return " "
+}
+
 // renderAddRecipient renders the add recipient form
 func (m EncryptDialogModel) renderAddRecipient() string {
 	var s strings.Builder
 
-	s.WriteString(TitleStyle.Render("➕ Add Recipient"))
+	// Title with primary color and bold
+	s.WriteString(lipgloss.NewStyle().Foreground(ColorPrimary).Bold(true).Render("Add Recipient"))
 	s.WriteString("\n\n")
 
-	s.WriteString("Add a team member who can decrypt your files.\n\n")
+	// Description
+	s.WriteString(MutedStyle.Render("Add a team member who can decrypt your files."))
+	s.WriteString("\n\n")
 
-	// Name input
-	nameLabel := "Name:     "
+	// Name input with cursor indicator
+	nameLabelStyle := lipgloss.NewStyle()
 	if m.focusedInput == 0 {
-		nameLabel = lipgloss.NewStyle().Foreground(ColorPrimary).Bold(true).Render("Name:     ")
+		nameLabelStyle = nameLabelStyle.Foreground(ColorPrimary).Bold(true)
+	} else {
+		nameLabelStyle = nameLabelStyle.Foreground(ColorMuted)
 	}
-	s.WriteString(nameLabel)
+	s.WriteString(m.renderInputCursor(0))
+	s.WriteString(" ")
+	s.WriteString(nameLabelStyle.Render("Name:"))
+	s.WriteString("     ")
 	s.WriteString(m.recipientName.View())
 	s.WriteString("\n\n")
 
-	// Key input
-	keyLabel := "Age Key:  "
+	// Key input with cursor indicator
+	keyLabelStyle := lipgloss.NewStyle()
 	if m.focusedInput == 1 {
-		keyLabel = lipgloss.NewStyle().Foreground(ColorPrimary).Bold(true).Render("Age Key:  ")
+		keyLabelStyle = keyLabelStyle.Foreground(ColorPrimary).Bold(true)
+	} else {
+		keyLabelStyle = keyLabelStyle.Foreground(ColorMuted)
 	}
-	s.WriteString(keyLabel)
+	s.WriteString(m.renderInputCursor(1))
+	s.WriteString(" ")
+	s.WriteString(keyLabelStyle.Render("Age Key:"))
+	s.WriteString("  ")
 	s.WriteString(m.recipientKey.View())
 	s.WriteString("\n")
 
 	// Success message
 	if m.successMsg != "" {
 		s.WriteString("\n")
-		s.WriteString(SuccessStyle.Render("✓ " + m.successMsg))
+		s.WriteString(SuccessStyle.Render("  [OK] " + m.successMsg))
 		s.WriteString("\n")
 	}
 
 	// Error message
 	if m.errorMsg != "" {
 		s.WriteString("\n")
-		s.WriteString(ErrorStyle.Render("⚠ " + m.errorMsg))
+		s.WriteString(ErrorStyle.Render("  [!] " + m.errorMsg))
 		s.WriteString("\n")
 	}
 
 	s.WriteString("\n")
 
-	// Help text
-	s.WriteString(MutedStyle.Render("Age public keys start with 'age1...'"))
+	// Help text section
+	s.WriteString(MutedStyle.Render("  Age public keys start with 'age1...'"))
 	s.WriteString("\n")
-	s.WriteString(MutedStyle.Render("Generate a key pair with: podx keygen -t age"))
+	s.WriteString(MutedStyle.Render("  Generate a key with [Ctrl+G] or run: podx keygen -t age"))
 	s.WriteString("\n\n")
 
-	// Footer
+	// Footer with action hints
 	s.WriteString(MutedStyle.Render("[Enter] Add  [Ctrl+G] Generate key  [Tab] Next  [Esc] Cancel"))
 
 	return s.String()
