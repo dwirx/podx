@@ -995,27 +995,36 @@ func (m EncryptDialogModel) renderAgeKeyConfirm() string {
 
 	action := "Encrypt"
 	icon := "🔑"
+	actionVerb := "Encrypting"
 	if m.isDecrypt {
 		action = "Decrypt"
 		icon = "🔓"
+		actionVerb = "Decrypting"
 	}
 
-	s.WriteString(TitleStyle.Render(fmt.Sprintf("%s Age Key Encryption", icon)))
+	s.WriteString(TitleStyle.Render(fmt.Sprintf("%s Age Key %s", icon, action)))
 	s.WriteString("\n\n")
 
-	// File info
-	if len(m.files) == 1 {
-		s.WriteString(MutedStyle.Render("File: "))
-		s.WriteString(m.files[0].Name)
-	} else {
-		s.WriteString(MutedStyle.Render("Files: "))
-		s.WriteString(fmt.Sprintf("%d selected", len(m.files)))
+	// File info with more detail
+	s.WriteString(lipgloss.NewStyle().Bold(true).Render("Files:"))
+	s.WriteString("\n")
+	for i, file := range m.files {
+		if i >= 3 {
+			s.WriteString(MutedStyle.Render(fmt.Sprintf("  ... and %d more\n", len(m.files)-3)))
+			break
+		}
+		fileIcon := "📄"
+		if file.IsEncrypted {
+			fileIcon = "🔒"
+		}
+		s.WriteString(fmt.Sprintf("  %s %s\n", fileIcon, file.Name))
 	}
-	s.WriteString("\n\n")
+	s.WriteString("\n")
 
 	// Recipients
 	if m.project != nil && len(m.project.Config.Recipients) > 0 {
-		s.WriteString("Recipients:\n")
+		s.WriteString(lipgloss.NewStyle().Bold(true).Render("Recipients:"))
+		s.WriteString("\n")
 		for _, r := range m.project.Config.Recipients {
 			keyPreview := r.Key
 			if len(keyPreview) > 20 {
@@ -1025,24 +1034,38 @@ func (m EncryptDialogModel) renderAgeKeyConfirm() string {
 			s.WriteString(fmt.Sprintf("%s (%s)\n", r.Name, keyPreview))
 		}
 		s.WriteString("\n")
-		s.WriteString(MutedStyle.Render("  Press [A] to add more recipients"))
 	} else {
 		s.WriteString(WarningStyle.Render("⚠ No recipients configured"))
 		s.WriteString("\n\n")
 		s.WriteString("  Press ")
 		s.WriteString(lipgloss.NewStyle().Foreground(ColorPrimary).Bold(true).Render("[A]"))
 		s.WriteString(" to add a recipient now\n")
-		s.WriteString(MutedStyle.Render("  or run 'podx add-recipient' from terminal"))
+		s.WriteString("  Press ")
+		s.WriteString(lipgloss.NewStyle().Foreground(ColorPrimary).Bold(true).Render("[M]"))
+		s.WriteString(" to use your own local key\n\n")
 	}
-	s.WriteString("\n")
 
-	// Output path
-	s.WriteString(MutedStyle.Render("Output: "))
-	s.WriteString(m.outputPath)
+	// Success/error messages
+	if m.successMsg != "" {
+		s.WriteString(SuccessStyle.Render("✓ " + m.successMsg))
+		s.WriteString("\n\n")
+	}
+	if m.errorMsg != "" {
+		s.WriteString(ErrorStyle.Render("✗ " + m.errorMsg))
+		s.WriteString("\n\n")
+	}
+
+	// Output info
+	s.WriteString(MutedStyle.Render(fmt.Sprintf("%s → %s", actionVerb, m.outputPath)))
 	s.WriteString("\n\n")
 
-	// Footer
-	s.WriteString(MutedStyle.Render(fmt.Sprintf("[Enter] %s  [M] My key  [A] Add recipient  [Esc] Back", action)))
+	// Footer with clear action
+	if m.project != nil && len(m.project.Config.Recipients) > 0 {
+		s.WriteString(lipgloss.NewStyle().Foreground(ColorPrimary).Bold(true).Render(fmt.Sprintf("[Enter] %s Now", action)))
+		s.WriteString(MutedStyle.Render("  [M] My key  [A] Add recipient  [Esc] Back"))
+	} else {
+		s.WriteString(MutedStyle.Render("[M] My key  [A] Add recipient  [Esc] Back"))
+	}
 
 	return s.String()
 }
@@ -1201,8 +1224,34 @@ func (m EncryptDialogModel) renderProcessing() string {
 // renderComplete renders the completion view
 func (m EncryptDialogModel) renderComplete() string {
 	var s strings.Builder
-	s.WriteString(SuccessStyle.Render("✅ " + m.successMsg))
+
+	// Success title
+	s.WriteString(TitleStyle.Render("✅ Operation Complete"))
 	s.WriteString("\n\n")
+
+	// Success message
+	s.WriteString(SuccessStyle.Render(m.successMsg))
+	s.WriteString("\n\n")
+
+	// Show files that were processed
+	if len(m.files) > 0 {
+		s.WriteString(MutedStyle.Render("Files processed:"))
+		s.WriteString("\n")
+		for i, file := range m.files {
+			if i >= 5 {
+				s.WriteString(MutedStyle.Render(fmt.Sprintf("  ... and %d more", len(m.files)-5)))
+				s.WriteString("\n")
+				break
+			}
+			if m.isDecrypt {
+				s.WriteString(fmt.Sprintf("  📄 %s\n", strings.TrimSuffix(file.Name, ".podx")))
+			} else {
+				s.WriteString(fmt.Sprintf("  🔒 %s.podx\n", file.Name))
+			}
+		}
+		s.WriteString("\n")
+	}
+
 	s.WriteString(MutedStyle.Render("[Enter] Close"))
 	return s.String()
 }
@@ -1210,8 +1259,27 @@ func (m EncryptDialogModel) renderComplete() string {
 // renderError renders the error view
 func (m EncryptDialogModel) renderError() string {
 	var s strings.Builder
-	s.WriteString(ErrorStyle.Render("❌ " + m.errorMsg))
+
+	// Error title
+	s.WriteString(ErrorStyle.Render("❌ Operation Failed"))
 	s.WriteString("\n\n")
-	s.WriteString(MutedStyle.Render("[Enter] Close"))
+
+	// Error message
+	s.WriteString(ErrorStyle.Render(m.errorMsg))
+	s.WriteString("\n\n")
+
+	// Suggestions based on error type
+	if strings.Contains(m.errorMsg, "No Age identity") || strings.Contains(m.errorMsg, "no Age identity") {
+		s.WriteString(MutedStyle.Render("Tip: Run 'podx keygen -t age' to generate a key"))
+		s.WriteString("\n\n")
+	} else if strings.Contains(m.errorMsg, "No PODX project") {
+		s.WriteString(MutedStyle.Render("Tip: Run 'podx init' to initialize a project"))
+		s.WriteString("\n\n")
+	} else if strings.Contains(m.errorMsg, "No recipients") {
+		s.WriteString(MutedStyle.Render("Tip: Press [A] to add a recipient, or [M] to use your own key"))
+		s.WriteString("\n\n")
+	}
+
+	s.WriteString(MutedStyle.Render("[Enter] Close  [Esc] Back"))
 	return s.String()
 }
