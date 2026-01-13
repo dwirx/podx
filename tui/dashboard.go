@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/hades/podx/keygen"
 	"github.com/hades/podx/project"
 	"github.com/hades/podx/security"
 	"github.com/hades/podx/updater"
@@ -35,6 +36,7 @@ type DashboardModel struct {
 	cwd         string
 	keys        KeyMap
 	version     string
+	keyInfo     keygen.KeyInfo
 }
 
 // projectLoadedMsg is sent when project loading completes
