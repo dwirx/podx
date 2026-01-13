@@ -197,6 +197,24 @@ func (m EncryptDialogModel) Update(msg tea.Msg) (EncryptDialogModel, tea.Cmd) {
 		}
 		return m, nil
 
+	case keygenCompleteMsg:
+		m.generatingKey = false
+		if msg.success {
+			m.generatedPublicKey = msg.publicKey
+			m.generatedPrivateKey = msg.privateKey
+			// Auto-fill the recipient key field
+			m.recipientKey.SetValue(msg.publicKey)
+			m.successMsg = "Key generated successfully!"
+			m.state = StateAddRecipient
+			m.focusedInput = 0 // Focus on name field
+			m.recipientName.Focus()
+			return m, textinput.Blink
+		} else {
+			m.errorMsg = msg.errorMsg
+			m.state = StateAddRecipient
+		}
+		return m, nil
+
 	case tea.KeyMsg:
 		switch m.state {
 		case StateSelectMethod:
@@ -207,6 +225,8 @@ func (m EncryptDialogModel) Update(msg tea.Msg) (EncryptDialogModel, tea.Cmd) {
 			return m.updateAgeKeyConfirm(msg)
 		case StateAddRecipient:
 			return m.updateAddRecipient(msg)
+		case StateGenerateKey:
+			return m.updateGenerateKey(msg)
 		case StateComplete, StateError:
 			// Any key closes the dialog
 			if msg.String() == "enter" || msg.String() == "esc" || msg.String() == " " {
@@ -449,6 +469,34 @@ func (m EncryptDialogModel) updateAddRecipient(msg tea.KeyMsg) (EncryptDialogMod
 		}
 		m.errorMsg = "" // Clear error on typing
 		return m, cmd
+	}
+
+	return m, nil
+}
+
+// updateGenerateKey handles the key generation state
+func (m EncryptDialogModel) updateGenerateKey(msg tea.KeyMsg) (EncryptDialogModel, tea.Cmd) {
+	switch msg.String() {
+	case "esc":
+		if m.generatingKey {
+			// Can't cancel during generation
+			return m, nil
+		}
+		m.state = StateAddRecipient
+		m.generatedPublicKey = ""
+		m.generatedPrivateKey = ""
+		return m, nil
+
+	case "enter", "y", "Y":
+		if !m.generatingKey {
+			m.generatingKey = true
+			m.errorMsg = ""
+			return m, m.doGenerateKey()
+		}
+
+	case "n", "N":
+		m.state = StateAddRecipient
+		return m, nil
 	}
 
 	return m, nil
