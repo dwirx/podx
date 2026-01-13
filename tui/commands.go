@@ -265,28 +265,35 @@ func (m CommandsModel) executeCommand(args []string, commandName string) tea.Cmd
 
 // Update handles messages for the commands model
 func (m CommandsModel) Update(msg tea.Msg) (CommandsModel, tea.Cmd) {
-	// Handle form dialog if visible
+	// Handle form dialog if visible (only for key messages)
 	if m.formDialog != nil && m.formDialog.IsVisible() {
-		var cmd tea.Cmd
-		*m.formDialog, cmd = m.formDialog.Update(msg)
-		return m, cmd
-	}
-
-	// Handle confirm dialog if visible
-	if m.confirmDialog != nil && m.confirmDialog.IsVisible() {
-		var cmd tea.Cmd
-		*m.confirmDialog, cmd = m.confirmDialog.Update(msg)
-		return m, cmd
-	}
-
-	// Handle progress view if visible
-	if m.progressView != nil && m.progressView.IsVisible() {
-		var cmd tea.Cmd
-		*m.progressView, cmd = m.progressView.Update(msg)
-		if !m.progressView.IsVisible() {
-			m.progressView = nil
+		if _, ok := msg.(tea.KeyMsg); ok {
+			var cmd tea.Cmd
+			*m.formDialog, cmd = m.formDialog.Update(msg)
+			return m, cmd
 		}
-		return m, cmd
+	}
+
+	// Handle confirm dialog if visible (only for key messages)
+	if m.confirmDialog != nil && m.confirmDialog.IsVisible() {
+		if _, ok := msg.(tea.KeyMsg); ok {
+			var cmd tea.Cmd
+			*m.confirmDialog, cmd = m.confirmDialog.Update(msg)
+			return m, cmd
+		}
+	}
+
+	// Handle progress view if visible (only for key messages)
+	// commandOutputMsg must be processed below, not intercepted here
+	if m.progressView != nil && m.progressView.IsVisible() {
+		if _, ok := msg.(tea.KeyMsg); ok {
+			var cmd tea.Cmd
+			*m.progressView, cmd = m.progressView.Update(msg)
+			if !m.progressView.IsVisible() {
+				m.progressView = nil
+			}
+			return m, cmd
+		}
 	}
 
 	switch msg := msg.(type) {
