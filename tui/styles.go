@@ -6,20 +6,23 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// Colors - Terminal Classic palette (retro terminal aesthetic)
+// Colors - Dracula color palette
+// https://draculatheme.com/contribute
 var (
-	// Primary colors - Terminal green/cyan theme
-	ColorPrimary   = lipgloss.Color("#00FF00") // Bright green (terminal classic)
-	ColorSecondary = lipgloss.Color("#00FFFF") // Cyan
-	ColorAccent    = lipgloss.Color("#FFFF00") // Yellow
-	ColorSuccess   = lipgloss.Color("#00FF00") // Bright green
-	ColorWarning   = lipgloss.Color("#FFFF00") // Yellow
-	ColorError     = lipgloss.Color("#FF0000") // Red
-	ColorMuted     = lipgloss.Color("#808080") // Gray
-	ColorBg        = lipgloss.Color("#000000") // Pure black
-	ColorBgLight   = lipgloss.Color("#1A1A1A") // Slightly lighter black
-	ColorBgDark    = lipgloss.Color("#000000") // Pure black
-	ColorBorder    = lipgloss.Color("#00FF00") // Green borders
+	// Dracula primary colors
+	ColorPrimary   = lipgloss.Color("#BD93F9") // Purple
+	ColorSecondary = lipgloss.Color("#8BE9FD") // Cyan
+	ColorAccent    = lipgloss.Color("#FF79C6") // Pink
+	ColorSuccess   = lipgloss.Color("#50FA7B") // Green
+	ColorWarning   = lipgloss.Color("#F1FA8C") // Yellow
+	ColorError     = lipgloss.Color("#FF5555") // Red
+	ColorMuted     = lipgloss.Color("#6272A4") // Comment (muted purple-gray)
+	ColorBg        = lipgloss.Color("#282A36") // Background
+	ColorBgLight   = lipgloss.Color("#44475A") // Current Line / Selection
+	ColorBgDark    = lipgloss.Color("#21222C") // Darker background
+	ColorBorder    = lipgloss.Color("#6272A4") // Border (comment color)
+	ColorFg        = lipgloss.Color("#F8F8F2") // Foreground
+	ColorOrange    = lipgloss.Color("#FFB86C") // Orange
 
 	// Legacy aliases for compatibility
 	ColorCyan   = ColorSecondary
@@ -27,49 +30,10 @@ var (
 	ColorYellow = ColorWarning
 	ColorRed    = ColorError
 	ColorGray   = ColorMuted
-	ColorWhite  = lipgloss.Color("#FFFFFF") // Pure white
+	ColorWhite  = ColorFg
 )
 
-// ASCII Box drawing characters
-const (
-	BoxTopLeft     = "+"
-	BoxTopRight    = "+"
-	BoxBottomLeft  = "+"
-	BoxBottomRight = "+"
-	BoxHorizontal  = "-"
-	BoxVertical    = "|"
-	BoxTLeft       = "+"
-	BoxTRight      = "+"
-	BoxTTop        = "+"
-	BoxTBottom     = "+"
-	BoxCross       = "+"
-)
-
-// TerminalBorder creates a classic ASCII border
-var TerminalBorder = lipgloss.Border{
-	Top:         BoxHorizontal,
-	Bottom:      BoxHorizontal,
-	Left:        BoxVertical,
-	Right:       BoxVertical,
-	TopLeft:     BoxTopLeft,
-	TopRight:    BoxTopRight,
-	BottomLeft:  BoxBottomLeft,
-	BottomRight: BoxBottomRight,
-}
-
-// DoubleBorder for emphasis
-var DoubleBorder = lipgloss.Border{
-	Top:         "=",
-	Bottom:      "=",
-	Left:        "||",
-	Right:       "||",
-	TopLeft:     "#",
-	TopRight:    "#",
-	BottomLeft:  "#",
-	BottomRight: "#",
-}
-
-// Styles - Reusable lipgloss styles
+// Styles - Reusable lipgloss styles with Dracula theme
 var (
 	// TitleStyle for headers and titles
 	TitleStyle = lipgloss.NewStyle().
@@ -101,7 +65,7 @@ var (
 
 	// BoxStyle for bordered containers
 	BoxStyle = lipgloss.NewStyle().
-			Border(TerminalBorder).
+			Border(lipgloss.RoundedBorder()).
 			BorderForeground(ColorBorder).
 			Background(ColorBg).
 			Padding(1, 2)
@@ -120,7 +84,7 @@ var (
 
 	// StatusBarStyle for the status bar at the bottom
 	StatusBarStyle = lipgloss.NewStyle().
-			Foreground(ColorPrimary).
+			Foreground(ColorFg).
 			Background(ColorBgDark).
 			Padding(0, 1)
 
@@ -133,7 +97,7 @@ var (
 
 	// CardStyle for dashboard cards
 	CardStyle = lipgloss.NewStyle().
-			Border(TerminalBorder).
+			Border(lipgloss.RoundedBorder()).
 			BorderForeground(ColorBorder).
 			Background(ColorBg).
 			Padding(1, 2).
@@ -172,13 +136,13 @@ var (
 
 	// SectionStyle for content sections
 	SectionStyle = lipgloss.NewStyle().
-			Border(TerminalBorder).
+			Border(lipgloss.RoundedBorder()).
 			BorderForeground(ColorBorder).
 			Background(ColorBg).
 			Padding(1, 2).
 			MarginBottom(1)
 
-	// OverlayBgStyle for dialog overlays - dark semi-transparent background
+	// OverlayBgStyle for dialog overlays
 	OverlayBgStyle = lipgloss.NewStyle().
 			Background(ColorBgDark)
 
@@ -203,33 +167,33 @@ var (
 
 	// BreadcrumbActiveStyle for active breadcrumb
 	BreadcrumbActiveStyle = lipgloss.NewStyle().
-				Foreground(ColorPrimary).
+				Foreground(ColorSecondary).
 				Bold(true)
 
 	// ToastStyle for notification toasts
 	ToastStyle = lipgloss.NewStyle().
-			Border(TerminalBorder).
+			Border(lipgloss.RoundedBorder()).
 			BorderForeground(ColorPrimary).
 			Background(ColorBg).
 			Padding(0, 2)
 
 	// ToastSuccessStyle for success toasts
 	ToastSuccessStyle = lipgloss.NewStyle().
-				Border(TerminalBorder).
+				Border(lipgloss.RoundedBorder()).
 				BorderForeground(ColorSuccess).
 				Background(ColorBg).
 				Padding(0, 2)
 
 	// ToastErrorStyle for error toasts
 	ToastErrorStyle = lipgloss.NewStyle().
-			Border(TerminalBorder).
+			Border(lipgloss.RoundedBorder()).
 			BorderForeground(ColorError).
 			Background(ColorBg).
 			Padding(0, 2)
 
 	// LogEntryStyle for activity log entries
 	LogEntryStyle = lipgloss.NewStyle().
-			Foreground(ColorWhite)
+			Foreground(ColorFg)
 
 	// LogTimestampStyle for log timestamps
 	LogTimestampStyle = lipgloss.NewStyle().
@@ -238,7 +202,7 @@ var (
 	// StatValueStyle for statistic values
 	StatValueStyle = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(ColorPrimary)
+			Foreground(ColorSecondary)
 
 	// StatLabelStyle for statistic labels
 	StatLabelStyle = lipgloss.NewStyle().
@@ -246,143 +210,83 @@ var (
 
 	// SearchStyle for global search input
 	SearchStyle = lipgloss.NewStyle().
-			Border(TerminalBorder).
+			Border(lipgloss.RoundedBorder()).
 			BorderForeground(ColorSecondary).
 			Background(ColorBg).
 			Padding(0, 1)
+
+	// HighlightStyle for highlighted text
+	HighlightStyle = lipgloss.NewStyle().
+			Foreground(ColorOrange).
+			Bold(true)
+
+	// LinkStyle for links and interactive elements
+	LinkStyle = lipgloss.NewStyle().
+			Foreground(ColorSecondary).
+			Underline(true)
 )
 
-// ASCII Art Logo
-const ASCIILogo = `
- ____   ___  ______  __
-|  _ \ / _ \|  _ \ \/ /
-| |_) | | | | | | \  /
-|  __/| |_| | |_| /  \
-|_|    \___/|____/_/\_\
-`
-
 // SmallLogo for header
-const SmallLogo = "[ PODX ]"
+const SmallLogo = "🔐 PODX"
 
-// RenderASCIIBox renders content in an ASCII box
-func RenderASCIIBox(title, content string, width int) string {
-	if width < 10 {
-		width = 40
-	}
-
-	// Top border with title
-	titleLen := len(title)
-	paddingLeft := (width - titleLen - 4) / 2
-	paddingRight := width - titleLen - 4 - paddingLeft
-
-	var sb strings.Builder
-
-	// Top line
-	sb.WriteString(BoxTopLeft)
-	if title != "" {
-		sb.WriteString(strings.Repeat(BoxHorizontal, paddingLeft))
-		sb.WriteString("[ ")
-		sb.WriteString(title)
-		sb.WriteString(" ]")
-		sb.WriteString(strings.Repeat(BoxHorizontal, paddingRight))
-	} else {
-		sb.WriteString(strings.Repeat(BoxHorizontal, width-2))
-	}
-	sb.WriteString(BoxTopRight)
-	sb.WriteString("\n")
-
-	// Content lines
-	lines := strings.Split(content, "\n")
-	for _, line := range lines {
-		sb.WriteString(BoxVertical)
-		sb.WriteString(" ")
-		// Truncate or pad line to fit
-		if len(line) > width-4 {
-			line = line[:width-7] + "..."
-		}
-		sb.WriteString(line)
-		padding := width - len(line) - 3
-		if padding > 0 {
-			sb.WriteString(strings.Repeat(" ", padding))
-		}
-		sb.WriteString(BoxVertical)
-		sb.WriteString("\n")
-	}
-
-	// Bottom line
-	sb.WriteString(BoxBottomLeft)
-	sb.WriteString(strings.Repeat(BoxHorizontal, width-2))
-	sb.WriteString(BoxBottomRight)
-
-	return sb.String()
-}
-
-// RenderProgressBar renders an ASCII progress bar
-func RenderProgressBar(current, total, width int) string {
-	if total == 0 {
-		return "[" + strings.Repeat("-", width) + "]"
-	}
-
-	filled := int(float64(current) / float64(total) * float64(width))
-	if filled > width {
-		filled = width
-	}
-
-	bar := strings.Repeat("#", filled) + strings.Repeat("-", width-filled)
-	percent := int(float64(current) / float64(total) * 100)
-
-	return "[" + bar + "] " + lipgloss.NewStyle().Foreground(ColorPrimary).Render(strings.Repeat("", 0)+string(rune('0'+percent/100%10))+string(rune('0'+percent/10%10))+string(rune('0'+percent%10))+"%")
+// TerminalBorder is a custom border style for terminal-like appearance
+var TerminalBorder = lipgloss.Border{
+	Top:         "─",
+	Bottom:      "─",
+	Left:        "│",
+	Right:       "│",
+	TopLeft:     "┌",
+	TopRight:    "┐",
+	BottomLeft:  "└",
+	BottomRight: "┘",
 }
 
 // RenderHorizontalDivider renders a horizontal divider
 func RenderHorizontalDivider(width int) string {
-	return DividerStyle.Render(strings.Repeat(BoxHorizontal, width))
+	return DividerStyle.Render(strings.Repeat("─", width))
 }
 
 // RenderDoubleDivider renders a double-line divider
 func RenderDoubleDivider(width int) string {
-	return DividerStyle.Render(strings.Repeat("=", width))
+	return DividerStyle.Render(strings.Repeat("═", width))
 }
 
 // CenterDialog centers a dialog within the terminal dimensions
 func CenterDialog(dialog string, termWidth, termHeight int) string {
-	dialogWidth := lipgloss.Width(dialog)
-	dialogHeight := lipgloss.Height(dialog)
-
-	// Calculate horizontal padding
-	hPadding := (termWidth - dialogWidth) / 2
-	if hPadding < 0 {
-		hPadding = 0
+	// Ensure minimum dimensions
+	if termWidth < 80 {
+		termWidth = 80
+	}
+	if termHeight < 24 {
+		termHeight = 24
 	}
 
-	// Calculate vertical padding
-	vPadding := (termHeight - dialogHeight) / 2
-	if vPadding < 0 {
-		vPadding = 0
-	}
+	// Use lipgloss.Place to center the dialog with a background
+	overlay := lipgloss.Place(
+		termWidth,
+		termHeight,
+		lipgloss.Center,
+		lipgloss.Center,
+		dialog,
+		lipgloss.WithWhitespaceBackground(ColorBgDark),
+		lipgloss.WithWhitespaceForeground(ColorBgDark),
+	)
 
-	// Create the centered view
-	centeredStyle := lipgloss.NewStyle().
-		Width(termWidth).
-		Height(termHeight).
-		Align(lipgloss.Center, lipgloss.Center).
-		Background(ColorBg)
-
-	return centeredStyle.Render(dialog)
+	return overlay
 }
 
-// RenderSpinner returns an ASCII spinner frame
+// RenderSpinner returns an animated spinner frame
 func RenderSpinner(frame int) string {
-	spinners := []string{"|", "/", "-", "\\"}
-	return spinners[frame%len(spinners)]
+	spinners := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+	return lipgloss.NewStyle().Foreground(ColorPrimary).Render(spinners[frame%len(spinners)])
 }
 
 // RenderStatusIndicator returns a status indicator
 func RenderStatusIndicator(ok bool) string {
 	if ok {
-		return SuccessStyle.Render("[OK]")
+		return SuccessStyle.Render("✓")
 	}
-	return ErrorStyle.Render("[!!]")
+	return ErrorStyle.Render("✗")
 }
 
 // RenderMenuItem renders a menu item
@@ -391,4 +295,94 @@ func RenderMenuItem(label string, shortcut string, selected bool) string {
 		return SelectedStyle.Render(" > [" + shortcut + "] " + label + " ")
 	}
 	return "   [" + MutedStyle.Render(shortcut) + "] " + label
+}
+
+// RenderProgressBar renders a progress bar
+func RenderProgressBar(current, total, width int) string {
+	if total == 0 || width < 5 {
+		return "░░░░░"
+	}
+
+	filled := int(float64(current) / float64(total) * float64(width))
+	if filled > width {
+		filled = width
+	}
+
+	bar := strings.Repeat("█", filled) + strings.Repeat("░", width-filled)
+	percent := int(float64(current) / float64(total) * 100)
+
+	return lipgloss.NewStyle().Foreground(ColorPrimary).Render(bar) + " " +
+		StatValueStyle.Render(strings.Repeat(" ", 3-len(string(rune(percent/10)))+1)) +
+		StatValueStyle.Render(string(rune('0'+percent/100%10))) +
+		StatValueStyle.Render(string(rune('0'+percent/10%10))) +
+		StatValueStyle.Render(string(rune('0'+percent%10))) +
+		StatValueStyle.Render("%")
+}
+
+// RenderKeyHint renders a keyboard shortcut hint
+func RenderKeyHint(key, description string) string {
+	return lipgloss.NewStyle().
+		Foreground(ColorBg).
+		Background(ColorMuted).
+		Padding(0, 1).
+		Render(key) + " " +
+		MutedStyle.Render(description)
+}
+
+// RenderFileIcon returns an icon for file types
+func RenderFileIcon(isDir, isEncrypted bool, ext string) string {
+	if isDir {
+		return IconStyle.Render("📁")
+	}
+	if isEncrypted {
+		return WarningStyle.Render("🔒")
+	}
+
+	switch strings.ToLower(ext) {
+	case ".go":
+		return lipgloss.NewStyle().Foreground(lipgloss.Color("#00ADD8")).Render("⚙")
+	case ".py":
+		return lipgloss.NewStyle().Foreground(lipgloss.Color("#3776AB")).Render("🐍")
+	case ".js", ".ts":
+		return lipgloss.NewStyle().Foreground(ColorWarning).Render("⚡")
+	case ".json", ".yaml", ".yml":
+		return SuccessStyle.Render("📋")
+	case ".md", ".txt":
+		return MutedStyle.Render("📝")
+	case ".env":
+		return WarningStyle.Render("🔐")
+	default:
+		return MutedStyle.Render("📄")
+	}
+}
+
+// RenderTag renders a colored tag/badge
+func RenderTag(text string, color lipgloss.Color) string {
+	return lipgloss.NewStyle().
+		Foreground(ColorBg).
+		Background(color).
+		Padding(0, 1).
+		Bold(true).
+		Render(text)
+}
+
+// RenderBox renders content in a styled box
+func RenderBox(title, content string, width int) string {
+	if width < 20 {
+		width = 40
+	}
+
+	style := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(ColorBorder).
+		Background(ColorBg).
+		Padding(1, 2).
+		Width(width)
+
+	if title != "" {
+		titleStyle := CardTitleStyle.Copy().MarginBottom(1)
+		content = titleStyle.Render(title) + "\n" + content
+	}
+
+	return style.Render(content)
 }
