@@ -255,37 +255,63 @@ func (m DashboardModel) renderNoProject() string {
 func (m DashboardModel) renderDashboard() string {
 	var sections []string
 
-	// Calculate responsive card widths
-	cardWidth := (m.width - 6) / 2
-	if cardWidth < 35 {
-		cardWidth = 35
-	}
-	if cardWidth > 50 {
-		cardWidth = 50
+	// Get terminal size category
+	termSize := GetTerminalSize(m.width)
+
+	// Calculate responsive card widths based on terminal size
+	var cardWidth int
+	switch termSize {
+	case TerminalSmall:
+		// Single column layout for small terminals
+		cardWidth = m.width - 6
+		if cardWidth < 30 {
+			cardWidth = 30
+		}
+	case TerminalMedium:
+		// Two column layout
+		cardWidth = (m.width - 8) / 2
+		if cardWidth < 35 {
+			cardWidth = 35
+		}
+	default:
+		// Large terminal - comfortable card widths
+		cardWidth = (m.width - 10) / 2
+		if cardWidth > 60 {
+			cardWidth = 60
+		}
 	}
 
 	// Update notification at top if available
 	if m.updateInfo != nil && m.updateInfo.Available {
-		updateCard := m.renderUpdateNotification(cardWidth * 2)
+		updateWidth := m.width - 6
+		if updateWidth > 100 {
+			updateWidth = 100
+		}
+		updateCard := m.renderUpdateNotification(updateWidth)
 		sections = append(sections, updateCard)
 	}
 
-	// Create horizontal layout with project info and security status side by side
+	// Create horizontal layout with project info and security status
 	projectCard := m.renderProjectInfoWithWidth(cardWidth)
 	securityCard := m.renderSecurityStatusWithWidth(cardWidth)
 
-	// Join cards horizontally if there's enough width
-	if m.width > 80 {
-		topRow := lipgloss.JoinHorizontal(lipgloss.Top, projectCard, securityCard)
-		sections = append(sections, topRow)
-	} else {
-		// Stack vertically on narrow terminals
+	// Layout based on terminal size
+	if termSize == TerminalSmall {
+		// Stack vertically on small terminals
 		sections = append(sections, projectCard)
 		sections = append(sections, securityCard)
+	} else {
+		// Side by side on medium/large terminals
+		topRow := lipgloss.JoinHorizontal(lipgloss.Top, projectCard, securityCard)
+		sections = append(sections, topRow)
 	}
 
-	// Quick actions below
-	actionsCard := m.renderQuickActionsWithWidth(cardWidth * 2)
+	// Quick actions - always full width but constrained
+	actionsWidth := m.width - 6
+	if actionsWidth > 100 {
+		actionsWidth = 100
+	}
+	actionsCard := m.renderQuickActionsWithWidth(actionsWidth)
 	sections = append(sections, actionsCard)
 
 	return lipgloss.JoinVertical(lipgloss.Left, sections...)
@@ -322,12 +348,13 @@ func (m DashboardModel) renderProjectInfoWithWidth(width int) string {
 
 	lines = append(lines, CardTitleStyle.Render("Project Info"))
 
-	// Path - truncate if too long
+	// Path - truncate based on available width
 	path := m.project.RootDir
-	maxPathLen := width - 12
-	if maxPathLen > 0 && len(path) > maxPathLen {
-		path = "..." + path[len(path)-maxPathLen+3:]
+	maxPathLen := width - 12 // Account for "Path: " and padding
+	if maxPathLen < 20 {
+		maxPathLen = 20
 	}
+	path = TruncateText(path, maxPathLen)
 	lines = append(lines, fmt.Sprintf("  Path:       %s", MutedStyle.Render(path)))
 
 	// Backend
