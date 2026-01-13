@@ -526,6 +526,15 @@ func (m EncryptDialogModel) updateGenerateKey(msg tea.KeyMsg) (EncryptDialogMode
 		return m, nil
 
 	case "enter", "y", "Y":
+		if m.generatedPublicKey != "" {
+			// Key already generated, use it
+			m.recipientKey.SetValue(m.generatedPublicKey)
+			m.state = StateAddRecipient
+			m.focusedInput = 0
+			m.recipientName.Focus()
+			m.recipientName.SetValue("Me (local)")
+			return m, textinput.Blink
+		}
 		if !m.generatingKey {
 			m.generatingKey = true
 			m.errorMsg = ""
