@@ -1449,63 +1449,104 @@ func (m EncryptDialogModel) renderAddRecipient() string {
 func (m EncryptDialogModel) renderGenerateKey() string {
 	var s strings.Builder
 
-	s.WriteString(TitleStyle.Render("Generate Age Key Pair"))
+	// Title with nice header
+	boxStyle := lipgloss.NewStyle().Foreground(ColorPrimary).Bold(true)
+	s.WriteString(boxStyle.Render("╔════════════════════════════════════════╗"))
+	s.WriteString("\n")
+	s.WriteString(boxStyle.Render("║     🔑 Generate Age Key Pair           ║"))
+	s.WriteString("\n")
+	s.WriteString(boxStyle.Render("╚════════════════════════════════════════╝"))
 	s.WriteString("\n\n")
 
 	if m.generatingKey {
-		s.WriteString("Generating key pair...\n")
-		s.WriteString(MutedStyle.Render("Please wait..."))
+		s.WriteString(RenderSpinner(0))
+		s.WriteString(" ")
+		s.WriteString(lipgloss.NewStyle().Foreground(ColorSecondary).Bold(true).Render("Generating key pair..."))
+		s.WriteString("\n\n")
+		s.WriteString(MutedStyle.Render("Creating X25519 key pair with secure random..."))
 		return s.String()
 	}
 
 	if m.generatedPublicKey != "" {
-		// Show generated key
-		s.WriteString(SuccessStyle.Render("Key generated successfully!"))
+		// Success header
+		s.WriteString(lipgloss.NewStyle().Foreground(ColorSuccess).Bold(true).Render("✓ Key Generated Successfully!"))
 		s.WriteString("\n\n")
 
-		s.WriteString(CardTitleStyle.Render("Public Key:"))
+		// Public Key box
+		s.WriteString(lipgloss.NewStyle().Foreground(ColorSuccess).Bold(true).Render("📤 Public Key (Share with team):"))
 		s.WriteString("\n")
-		// Wrap long key
-		pubKey := m.generatedPublicKey
-		if len(pubKey) > 50 {
-			s.WriteString("  " + pubKey[:50] + "\n")
-			s.WriteString("  " + pubKey[50:])
-		} else {
-			s.WriteString("  " + pubKey)
-		}
+		pubKeyBox := lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(ColorSuccess).
+			Padding(0, 1).
+			Render(m.generatedPublicKey)
+		s.WriteString(pubKeyBox)
 		s.WriteString("\n\n")
 
-		s.WriteString(CardTitleStyle.Render("Private Key:"))
+		// Private Key box
+		s.WriteString(lipgloss.NewStyle().Foreground(ColorWarning).Bold(true).Render("🔐 Private Key (Keep secret!):"))
 		s.WriteString("\n")
-		privKey := m.generatedPrivateKey
-		if len(privKey) > 50 {
-			s.WriteString("  " + privKey[:50] + "\n")
-			s.WriteString("  " + privKey[50:])
-		} else {
-			s.WriteString("  " + privKey)
-		}
+		privKeyBox := lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(ColorWarning).
+			Padding(0, 1).
+			Render(m.generatedPrivateKey)
+		s.WriteString(privKeyBox)
 		s.WriteString("\n\n")
 
-		s.WriteString(WarningStyle.Render("Keys saved to ~/.config/podx/"))
+		// Storage info
+		s.WriteString(CardTitleStyle.Render("📁 Storage Location:"))
+		s.WriteString("\n")
+		s.WriteString(MutedStyle.Render("  Private: "))
+		s.WriteString(lipgloss.NewStyle().Foreground(ColorSecondary).Render("~/.config/podx/age-keys.txt"))
+		s.WriteString("\n")
+		s.WriteString(MutedStyle.Render("  Public:  "))
+		s.WriteString(lipgloss.NewStyle().Foreground(ColorSecondary).Render("~/.config/podx/age-recipients/default.txt"))
 		s.WriteString("\n\n")
 
-		s.WriteString(MutedStyle.Render("[Enter] Use this key  [Esc] Back"))
+		// Warning
+		s.WriteString(lipgloss.NewStyle().Foreground(ColorWarning).Render("⚠️  Never share your private key!"))
+		s.WriteString("\n\n")
+
+		// Footer
+		s.WriteString(lipgloss.NewStyle().Foreground(ColorPrimary).Bold(true).Render("[Enter]"))
+		s.WriteString(MutedStyle.Render(" Use this key as recipient  "))
+		s.WriteString(MutedStyle.Render("[Esc] Back"))
 	} else {
 		// Confirmation prompt
-		s.WriteString("This will generate a new Age X25519 key pair.\n\n")
+		s.WriteString(MutedStyle.Render("This will generate a new Age X25519 key pair for encryption."))
+		s.WriteString("\n\n")
 
-		s.WriteString("The keys will be saved to:\n")
-		s.WriteString(MutedStyle.Render("  ~/.config/podx/age-keys.txt (private)\n"))
-		s.WriteString(MutedStyle.Render("  ~/.config/podx/age-recipients/default.txt (public)\n"))
+		s.WriteString(CardTitleStyle.Render("📁 Keys will be saved to:"))
 		s.WriteString("\n")
+		s.WriteString(MutedStyle.Render("  • "))
+		s.WriteString(lipgloss.NewStyle().Foreground(ColorSecondary).Render("~/.config/podx/age-keys.txt"))
+		s.WriteString(MutedStyle.Render(" (private)"))
+		s.WriteString("\n")
+		s.WriteString(MutedStyle.Render("  • "))
+		s.WriteString(lipgloss.NewStyle().Foreground(ColorSecondary).Render("~/.config/podx/age-recipients/default.txt"))
+		s.WriteString(MutedStyle.Render(" (public)"))
+		s.WriteString("\n\n")
+
+		s.WriteString(CardTitleStyle.Render("🔐 Algorithm:"))
+		s.WriteString("\n")
+		s.WriteString(MutedStyle.Render("  • "))
+		s.WriteString(lipgloss.NewStyle().Foreground(ColorSecondary).Render("X25519"))
+		s.WriteString(MutedStyle.Render(" (Elliptic Curve Diffie-Hellman)"))
+		s.WriteString("\n\n")
 
 		if m.errorMsg != "" {
-			s.WriteString(ErrorStyle.Render("Error: " + m.errorMsg))
+			s.WriteString(ErrorStyle.Render("✗ " + m.errorMsg))
 			s.WriteString("\n\n")
 		}
 
-		s.WriteString("Generate new key pair?\n\n")
-		s.WriteString(MutedStyle.Render("[Y/Enter] Generate  [N/Esc] Cancel"))
+		// Confirmation buttons
+		s.WriteString(lipgloss.NewStyle().Foreground(ColorSuccess).Bold(true).Render("Generate new key pair?"))
+		s.WriteString("\n\n")
+		s.WriteString(lipgloss.NewStyle().Foreground(ColorPrimary).Bold(true).Render("[Y/Enter]"))
+		s.WriteString(MutedStyle.Render(" Generate  "))
+		s.WriteString(lipgloss.NewStyle().Foreground(ColorMuted).Render("[N/Esc]"))
+		s.WriteString(MutedStyle.Render(" Cancel"))
 	}
 
 	return s.String()

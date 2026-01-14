@@ -476,48 +476,65 @@ func (m Model) renderSizeWarning() string {
 // renderHelp renders the help overlay with ASCII style
 func (m Model) renderHelp() string {
 	helpText := []string{
-		TitleStyle.Render("[ KEYBOARD SHORTCUTS ]"),
+		lipgloss.NewStyle().Foreground(ColorPrimary).Bold(true).Render("╔════════════════════════════════════════════════════╗"),
+		lipgloss.NewStyle().Foreground(ColorPrimary).Bold(true).Render("║           🔐 PODX KEYBOARD SHORTCUTS              ║"),
+		lipgloss.NewStyle().Foreground(ColorPrimary).Bold(true).Render("╚════════════════════════════════════════════════════╝"),
 		"",
-		CardTitleStyle.Render("Navigation:"),
-		"  up/k        Move up",
-		"  down/j      Move down",
-		"  left/h      Move left / Back",
-		"  right/l     Move right / Select",
-		"  Enter       Confirm action",
+		CardTitleStyle.Render("📍 Navigation:"),
+		"  " + lipgloss.NewStyle().Foreground(ColorSecondary).Bold(true).Render("↑/k") + "         Move up",
+		"  " + lipgloss.NewStyle().Foreground(ColorSecondary).Bold(true).Render("↓/j") + "         Move down",
+		"  " + lipgloss.NewStyle().Foreground(ColorSecondary).Bold(true).Render("←/h") + "         Go back / Close",
+		"  " + lipgloss.NewStyle().Foreground(ColorSecondary).Bold(true).Render("→/l") + "         Select / Enter",
+		"  " + lipgloss.NewStyle().Foreground(ColorSecondary).Bold(true).Render("Enter") + "       Confirm action",
 		"",
-		CardTitleStyle.Render("Tabs:"),
-		"  Tab         Next tab",
-		"  Shift+Tab   Previous tab",
-		"  1/2/3/4/5   Jump to tab directly",
+		CardTitleStyle.Render("📑 Tabs:"),
+		"  " + lipgloss.NewStyle().Foreground(ColorSecondary).Bold(true).Render("Tab") + "         Next tab",
+		"  " + lipgloss.NewStyle().Foreground(ColorSecondary).Bold(true).Render("Shift+Tab") + "   Previous tab",
+		"  " + lipgloss.NewStyle().Foreground(ColorSecondary).Bold(true).Render("1-5") + "         Jump to tab (Dashboard/Cmd/Sec/Files/Log)",
 		"",
-		CardTitleStyle.Render("Search:"),
-		"  Ctrl+F      Global search",
+		CardTitleStyle.Render("🔍 Search:"),
+		"  " + lipgloss.NewStyle().Foreground(ColorSecondary).Bold(true).Render("Ctrl+F") + "      Open global search",
+		"  " + lipgloss.NewStyle().Foreground(ColorSecondary).Bold(true).Render("/") + "           Filter files (in Files tab)",
 		"",
-		CardTitleStyle.Render("Files Tab:"),
-		"  e           Encrypt selected file(s)",
-		"  d           Decrypt selected file(s)",
-		"  Space       Toggle file selection",
-		"  a           Select/deselect all",
-		"  /           Filter files",
-		"  g           Go to path",
-		"  p           Toggle preview panel",
+		CardTitleStyle.Render("📁 Files Tab:"),
+		"  " + lipgloss.NewStyle().Foreground(ColorSecondary).Bold(true).Render("Space") + "       Toggle file selection",
+		"  " + lipgloss.NewStyle().Foreground(ColorSecondary).Bold(true).Render("a") + "           Select/deselect all files",
+		"  " + lipgloss.NewStyle().Foreground(ColorSecondary).Bold(true).Render("e") + "           Encrypt selected files",
+		"  " + lipgloss.NewStyle().Foreground(ColorSecondary).Bold(true).Render("d") + "           Decrypt selected files",
+		"  " + lipgloss.NewStyle().Foreground(ColorSecondary).Bold(true).Render("p") + "           Toggle preview panel",
+		"  " + lipgloss.NewStyle().Foreground(ColorSecondary).Bold(true).Render("g") + "           Go to path",
 		"",
-		CardTitleStyle.Render("General:"),
-		"  r           Refresh current view",
-		"  ?           Toggle this help",
-		"  q/Esc       Quit",
+		CardTitleStyle.Render("🔐 Encryption Dialog:"),
+		"  " + lipgloss.NewStyle().Foreground(ColorSecondary).Bold(true).Render("1") + "           Password encryption",
+		"  " + lipgloss.NewStyle().Foreground(ColorSecondary).Bold(true).Render("2") + "           Age key encryption",
+		"  " + lipgloss.NewStyle().Foreground(ColorSecondary).Bold(true).Render("N/P") + "         Normal/Paranoid mode",
+		"  " + lipgloss.NewStyle().Foreground(ColorSecondary).Bold(true).Render("S") + "           Select recipients",
+		"  " + lipgloss.NewStyle().Foreground(ColorSecondary).Bold(true).Render("A") + "           Add new recipient",
+		"  " + lipgloss.NewStyle().Foreground(ColorSecondary).Bold(true).Render("M") + "           Use my local key",
 		"",
-		MutedStyle.Render("Press any key to close..."),
+		CardTitleStyle.Render("⚡ Quick Actions (Dashboard):"),
+		"  " + lipgloss.NewStyle().Foreground(ColorSecondary).Bold(true).Render("E") + "           Encrypt all secrets",
+		"  " + lipgloss.NewStyle().Foreground(ColorSecondary).Bold(true).Render("D") + "           Decrypt all secrets",
+		"  " + lipgloss.NewStyle().Foreground(ColorSecondary).Bold(true).Render("C") + "           Run security check",
+		"  " + lipgloss.NewStyle().Foreground(ColorSecondary).Bold(true).Render("H") + "           Install pre-commit hook",
+		"  " + lipgloss.NewStyle().Foreground(ColorSecondary).Bold(true).Render("K") + "           Generate new Age key",
+		"",
+		CardTitleStyle.Render("🔧 General:"),
+		"  " + lipgloss.NewStyle().Foreground(ColorSecondary).Bold(true).Render("r") + "           Refresh current view",
+		"  " + lipgloss.NewStyle().Foreground(ColorSecondary).Bold(true).Render("?") + "           Toggle this help",
+		"  " + lipgloss.NewStyle().Foreground(ColorSecondary).Bold(true).Render("q/Esc") + "       Quit / Close dialog",
+		"",
+		lipgloss.NewStyle().Foreground(ColorMuted).Italic(true).Render("Press any key to close this help..."),
 	}
 
 	// Center the help dialog
 	helpContent := strings.Join(helpText, "\n")
 	helpBox := lipgloss.NewStyle().
-		Border(TerminalBorder).
+		Border(lipgloss.RoundedBorder()).
 		BorderForeground(ColorPrimary).
 		Background(ColorBg).
 		Padding(1, 2).
-		Width(50).
+		Width(58).
 		Render(helpContent)
 
 	return CenterDialog(helpBox, m.width, m.height)
@@ -525,16 +542,38 @@ func (m Model) renderHelp() string {
 
 // renderStatusBar renders the status bar at the bottom with ASCII style
 func (m Model) renderStatusBar() string {
-	// Left side - status message
-	statusLeft := fmt.Sprintf(" %s", m.statusMsg)
+	// Left side - current tab icon and status message
+	tabIcons := []string{"📊", "⚡", "🛡️", "📁", "📋"}
+	tabIcon := tabIcons[m.activeTab]
+	statusLeft := fmt.Sprintf(" %s %s │ %s", tabIcon, tabNames[m.activeTab], m.statusMsg)
 
-	// Right side - help hint
-	statusRight := "? Help | Ctrl+F Search | q Quit "
+	// Right side - context-sensitive help hints
+	var hints []string
+	switch m.activeTab {
+	case TabDashboard:
+		hints = []string{"E:Encrypt", "D:Decrypt", "C:Check"}
+	case TabFiles:
+		hints = []string{"Space:Select", "e:Encrypt", "d:Decrypt"}
+	case TabSecurity:
+		hints = []string{"r:Refresh", "Enter:Details"}
+	case TabCommands:
+		hints = []string{"Enter:Run", "↑↓:Navigate"}
+	case TabLogs:
+		hints = []string{"↑↓:Scroll", "c:Clear"}
+	}
+	hintsStr := strings.Join(hints, " │ ")
+	statusRight := fmt.Sprintf("%s │ ?:Help │ q:Quit ", hintsStr)
 
 	// Calculate padding
 	padding := m.width - lipgloss.Width(statusLeft) - lipgloss.Width(statusRight)
 	if padding < 0 {
 		padding = 0
+		// Truncate hints if too long
+		statusRight = "?:Help │ q:Quit "
+		padding = m.width - lipgloss.Width(statusLeft) - lipgloss.Width(statusRight)
+		if padding < 0 {
+			padding = 0
+		}
 	}
 
 	status := statusLeft + strings.Repeat(" ", padding) + statusRight
