@@ -584,6 +584,7 @@ func (m EncryptDialogModel) doEncryptPassword() tea.Cmd {
 
 		successCount := 0
 		var lastErr error
+		var processedFiles []string
 
 		for _, file := range m.files {
 			if file.IsDir || file.Name == ".." || file.IsEncrypted {
@@ -593,29 +594,31 @@ func (m EncryptDialogModel) doEncryptPassword() tea.Cmd {
 			// Read file content
 			content, err := os.ReadFile(file.Path)
 			if err != nil {
-				lastErr = err
+				lastErr = fmt.Errorf("failed to read %s: %v", file.Name, err)
 				continue
 			}
 
 			// Encrypt using v2 format
 			ciphertext, err := crypto.EncryptV2(content, []byte(password), opts)
 			if err != nil {
-				lastErr = err
+				lastErr = fmt.Errorf("failed to encrypt %s: %v", file.Name, err)
 				continue
 			}
 
 			// Write encrypted file
 			outPath := file.Path + ".podx"
 			if err := os.WriteFile(outPath, ciphertext, 0600); err != nil {
-				lastErr = err
+				lastErr = fmt.Errorf("failed to write %s: %v", file.Name+".podx", err)
 				continue
 			}
 
-			// Remove original
+			// Only remove original after successful encryption
 			if err := os.Remove(file.Path); err != nil {
-				lastErr = err
+				// Non-fatal: encryption succeeded but cleanup failed
+				lastErr = fmt.Errorf("encrypted but failed to remove original: %v", err)
 			}
 
+			processedFiles = append(processedFiles, file.Name+" → "+file.Name+".podx")
 			successCount++
 		}
 
@@ -623,14 +626,14 @@ func (m EncryptDialogModel) doEncryptPassword() tea.Cmd {
 			return encryptCompleteMsg{success: false, message: fmt.Sprintf("Encryption failed: %v", lastErr)}
 		}
 
-		modeStr := "AES-GCM"
+		modeStr := "AES-256-GCM"
 		if m.encryptMode == EncryptModeParanoid {
 			modeStr = "XChaCha20+Serpent (paranoid)"
 		}
 
 		return encryptCompleteMsg{
 			success: true,
-			message: fmt.Sprintf("🔐 Encrypted %d file(s) with %s", successCount, modeStr),
+			message: fmt.Sprintf("Encrypted %d file(s) with %s", successCount, modeStr),
 			files:   successCount,
 		}
 	}
@@ -643,6 +646,7 @@ func (m EncryptDialogModel) doDecryptPassword() tea.Cmd {
 
 		successCount := 0
 		var lastErr error
+		var processedFiles []string
 
 		for _, file := range m.files {
 			if file.IsDir || file.Name == ".." || !file.IsEncrypted {
@@ -652,29 +656,32 @@ func (m EncryptDialogModel) doDecryptPassword() tea.Cmd {
 			// Read encrypted file
 			content, err := os.ReadFile(file.Path)
 			if err != nil {
-				lastErr = err
+				lastErr = fmt.Errorf("failed to read %s: %v", file.Name, err)
 				continue
 			}
 
 			// Use auto-detection to decrypt (supports v1 and v2 formats)
 			plaintext, err := crypto.DetectAndDecrypt(content, []byte(password))
 			if err != nil {
-				lastErr = fmt.Errorf("wrong password or corrupted file")
+				lastErr = fmt.Errorf("wrong password or corrupted file: %s", file.Name)
 				continue
 			}
 
-			// Write decrypted file
+			// Write decrypted file (remove .podx extension)
 			outPath := strings.TrimSuffix(file.Path, ".podx")
+			outName := strings.TrimSuffix(file.Name, ".podx")
 			if err := os.WriteFile(outPath, plaintext, 0644); err != nil {
-				lastErr = err
+				lastErr = fmt.Errorf("failed to write %s: %v", outName, err)
 				continue
 			}
 
-			// Remove encrypted file
+			// Remove encrypted file after successful decryption
 			if err := os.Remove(file.Path); err != nil {
-				lastErr = err
+				// Non-fatal: decryption succeeded but cleanup failed
+				lastErr = fmt.Errorf("decrypted but failed to remove encrypted file: %v", err)
 			}
 
+			processedFiles = append(processedFiles, file.Name+" → "+outName)
 			successCount++
 		}
 
@@ -684,7 +691,7 @@ func (m EncryptDialogModel) doDecryptPassword() tea.Cmd {
 
 		return encryptCompleteMsg{
 			success: true,
-			message: fmt.Sprintf("🔓 Decrypted %d file(s)", successCount),
+			message: fmt.Sprintf("Decrypted %d file(s) successfully", successCount),
 			files:   successCount,
 		}
 	}
@@ -694,7 +701,11 @@ func (m EncryptDialogModel) doDecryptPassword() tea.Cmd {
 func (m EncryptDialogModel) doEncryptAge() tea.Cmd {
 	return func() tea.Msg {
 		if m.project == nil {
-			return encryptCompleteMsg{success: false, message: "No PODX project found"}
+			return encryptCompleteMsg{success: false, message: "No PODX project found. Run 'podx init' first"}
+		}
+
+		if len(m.project.Config.Recipients) == 0 {
+			return encryptCompleteMsg{success: false, message: "No recipients configured. Add a recipient first"}
 		}
 
 		var recipientKeys []string
@@ -704,6 +715,7 @@ func (m EncryptDialogModel) doEncryptAge() tea.Cmd {
 
 		successCount := 0
 		var lastErr error
+		var processedFiles []string
 
 		for _, file := range m.files {
 			if file.IsDir || file.Name == ".." || file.IsEncrypted {
@@ -720,15 +732,17 @@ func (m EncryptDialogModel) doEncryptAge() tea.Cmd {
 			}
 
 			if err != nil {
-				lastErr = err
+				lastErr = fmt.Errorf("failed to encrypt %s: %v", file.Name, err)
 				continue
 			}
 
-			// Delete original
+			// Only delete original after successful encryption
 			if err := os.Remove(file.Path); err != nil {
-				lastErr = err
+				// Non-fatal: encryption succeeded but cleanup failed
+				lastErr = fmt.Errorf("encrypted but failed to remove original %s: %v", file.Name, err)
 			}
 
+			processedFiles = append(processedFiles, file.Name+" → "+file.Name+".podx")
 			successCount++
 		}
 
@@ -738,7 +752,7 @@ func (m EncryptDialogModel) doEncryptAge() tea.Cmd {
 
 		return encryptCompleteMsg{
 			success: true,
-			message: fmt.Sprintf("🔑 Encrypted %d file(s) with Age key", successCount),
+			message: fmt.Sprintf("Encrypted %d file(s) with Age key", successCount),
 			files:   successCount,
 		}
 	}
@@ -748,11 +762,12 @@ func (m EncryptDialogModel) doEncryptAge() tea.Cmd {
 func (m EncryptDialogModel) doDecryptAge() tea.Cmd {
 	return func() tea.Msg {
 		if m.project == nil {
-			return encryptCompleteMsg{success: false, message: "No PODX project found"}
+			return encryptCompleteMsg{success: false, message: "No PODX project found. Run 'podx init' first"}
 		}
 
 		successCount := 0
 		var lastErr error
+		var processedFiles []string
 
 		for _, file := range m.files {
 			if file.IsDir || file.Name == ".." || !file.IsEncrypted {
@@ -760,19 +775,21 @@ func (m EncryptDialogModel) doDecryptAge() tea.Cmd {
 			}
 
 			decPath := strings.TrimSuffix(file.Path, ".podx")
+			decName := strings.TrimSuffix(file.Name, ".podx")
 			err := m.project.DecryptFile(file.Path, decPath)
 
 			if err != nil {
-				lastErr = err
+				lastErr = fmt.Errorf("failed to decrypt %s: %v", file.Name, err)
 				continue
 			}
 
-			// Delete the encrypted .podx file after successful decryption
+			// Only delete the encrypted .podx file after successful decryption
 			if err := os.Remove(file.Path); err != nil {
 				// Non-fatal: decryption succeeded but cleanup failed
-				lastErr = err
+				lastErr = fmt.Errorf("decrypted but failed to remove %s: %v", file.Name, err)
 			}
 
+			processedFiles = append(processedFiles, file.Name+" → "+decName)
 			successCount++
 		}
 
@@ -785,7 +802,7 @@ func (m EncryptDialogModel) doDecryptAge() tea.Cmd {
 
 		return encryptCompleteMsg{
 			success: true,
-			message: fmt.Sprintf("🔑 Decrypted %d file(s) with Age key", successCount),
+			message: fmt.Sprintf("Decrypted %d file(s) with Age key", successCount),
 			files:   successCount,
 		}
 	}
