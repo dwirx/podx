@@ -88,6 +88,12 @@ func main() {
 		handleUpdate(os.Args[2:])
 	case "rollback":
 		handleRollback()
+	case "shamir":
+		if len(os.Args) < 3 {
+			fmt.Println("Usage: podx shamir <split|combine> [options]")
+			os.Exit(1)
+		}
+		handleShamir(os.Args[2], os.Args[3:])
 	case "version", "-v", "--version":
 		printVersion()
 	case "help", "-h", "--help":
@@ -119,6 +125,7 @@ FILE COMMANDS:
 OTHER:
   check      Check for unencrypted secrets
   hook       Manage pre-commit hook
+  shamir     Split/combine secrets with Shamir Secret Sharing
   update     Self-update to latest version (--beta for beta)
   rollback   Rollback to previous version after update
   version    Show version info
@@ -131,7 +138,9 @@ USAGE:
   podx keygen -t age                     # Generate Age key
   podx update                            # Update to latest
   podx encrypt -a aes-gcm -i F -o F.enc  # Encrypt file
-  podx env encrypt -i .env -o .env.podx  # Encrypt .env`)
+  podx env encrypt -i .env -o .env.podx  # Encrypt .env
+  podx shamir split -i key.txt -t 3 -n 5 # Split key to 5 shares (need 3)
+  podx shamir combine -d ./shares        # Combine shares`)
 }
 
 func handleEncrypt(args []string) {
@@ -706,4 +715,202 @@ func handleHook(subcmd string, args []string) {
 		fmt.Println("Usage: podx hook <install|uninstall|status>")
 		os.Exit(1)
 	}
+}
+
+func handleShamir(subcmd string, args []string) {
+	switch subcmd {
+	case "split":
+		handleShamirSplit(args)
+	case "combine":
+		handleShamirCombine(args)
+	case "presets":
+		handleShamirPresets()
+	default:
+		fmt.Printf("Unknown shamir command: %s\n", subcmd)
+		fmt.Println("Usage: podx shamir <split|combine|presets> [options]")
+		os.Exit(1)
+	}
+}
+
+func handleShamirSplit(args []string) {
+	fs := flag.NewFlagSet("shamir split", flag.ExitOnError)
+	input := fs.String("i", "", "Input file containing secret")
+	fs.String("input", "", "")
+	output := fs.String("o", "", "Output directory for shares (default: ./shares)")
+	fs.String("output", "", "")
+	threshold := fs.Int("t", 0, "Threshold (minimum shares needed)")
+	fs.Int("threshold", 0, "")
+	total := fs.Int("n", 0, "Total number of shares")
+	fs.Int("total", 0, "")
+	preset := fs.String("p", "", "Use preset (2-of-3, 3-of-5, 4-of-7, 5-of-9)")
+	fs.String("preset", "", "")
+	qrcode := fs.Bool("qr", false, "Generate QR codes for shares")
+	fs.Bool("qrcode", false, "")
+
+	if err := fs.Parse(args); err != nil {
+		fmt.Println("Error:", err)
+		os.Exit(1)
+	}
+
+	if *input == "" {
+		fmt.Println("Error: input file (-i) is required")
+		os.Exit(1)
+	}
+
+	// Determine threshold and total
+	var t, n int
+	if *preset != "" {
+		p, err := crypto.GetPreset(*preset)
+		if err != nil {
+			fmt.Println("Error:", err)
+			fmt.Println("Available presets: 2-of-3, 3-of-5, 4-of-7, 5-of-9")
+			os.Exit(1)
+		}
+		t = p.Threshold
+		n = p.TotalShares
+	} else if *threshold > 0 && *total > 0 {
+		t = *threshold
+		n = *total
+	} else {
+		fmt.Println("Error: specify -p (preset) or both -t (threshold) and -n (total)")
+		fmt.Println("Examples:")
+		fmt.Println("  podx shamir split -i secret.key -p 3-of-5")
+		fmt.Println("  podx shamir split -i secret.key -t 3 -n 5")
+		os.Exit(1)
+	}
+
+	// Read secret
+	secret, err := os.ReadFile(*input)
+	if err != nil {
+		fmt.Printf("Error reading input file: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Split
+	shares, err := crypto.ShamirSplit(secret, t, n)
+	if err != nil {
+		fmt.Printf("Error splitting secret: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Determine output directory
+	outDir := *output
+	if outDir == "" {
+		outDir = "./shares"
+	}
+
+	// Save shares
+	paths, err := crypto.SaveAllShares(shares, outDir)
+	if err != nil {
+		fmt.Printf("Error saving shares: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("✓ Secret split into %d shares (threshold: %d)\n", n, t)
+	fmt.Println("  Shares saved to:", outDir)
+	for _, path := range paths {
+		fmt.Println("   ", path)
+	}
+
+	// Generate QR codes if requested
+	if *qrcode {
+		qrPaths, err := crypto.SaveAllShareQRCodes(shares, outDir, nil)
+		if err != nil {
+			fmt.Printf("Warning: Failed to generate QR codes: %v\n", err)
+		} else {
+			fmt.Println("\n  QR codes generated:")
+			for _, path := range qrPaths {
+				fmt.Println("   ", path)
+			}
+		}
+	}
+
+	fmt.Printf("\n⚠️  IMPORTANT: Distribute shares to different locations/people.\n")
+	fmt.Printf("   At least %d shares are needed to recover the secret.\n", t)
+}
+
+func handleShamirCombine(args []string) {
+	fs := flag.NewFlagSet("shamir combine", flag.ExitOnError)
+	dir := fs.String("d", "", "Directory containing share files")
+	fs.String("dir", "", "")
+	output := fs.String("o", "", "Output file for recovered secret")
+	fs.String("output", "", "")
+	files := fs.String("f", "", "Comma-separated list of share files")
+	fs.String("files", "", "")
+
+	if err := fs.Parse(args); err != nil {
+		fmt.Println("Error:", err)
+		os.Exit(1)
+	}
+
+	if *output == "" {
+		fmt.Println("Error: output file (-o) is required")
+		os.Exit(1)
+	}
+
+	var shares []*crypto.Share
+	var err error
+
+	if *dir != "" {
+		// Load from directory
+		shares, err = crypto.LoadSharesFromDir(*dir)
+		if err != nil {
+			fmt.Printf("Error loading shares: %v\n", err)
+			os.Exit(1)
+		}
+	} else if *files != "" {
+		// Load from specific files
+		fileList := strings.Split(*files, ",")
+		for _, f := range fileList {
+			f = strings.TrimSpace(f)
+			share, loadErr := crypto.LoadShare(f)
+			if loadErr != nil {
+				fmt.Printf("Error loading share %s: %v\n", f, loadErr)
+				os.Exit(1)
+			}
+			shares = append(shares, share)
+		}
+	} else {
+		fmt.Println("Error: specify -d (directory) or -f (files)")
+		os.Exit(1)
+	}
+
+	if len(shares) == 0 {
+		fmt.Println("Error: no shares found")
+		os.Exit(1)
+	}
+
+	// Validate shares
+	if err := crypto.ValidateShares(shares); err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("Found %d shares:\n", len(shares))
+	for _, s := range shares {
+		fmt.Printf("  - %s\n", crypto.ShareInfo(s))
+	}
+
+	// Combine
+	secret, err := crypto.ShamirCombine(shares)
+	if err != nil {
+		fmt.Printf("Error combining shares: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Write output
+	if err := os.WriteFile(*output, secret, 0600); err != nil {
+		fmt.Printf("Error writing output: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("\n✓ Secret recovered and saved to: %s\n", *output)
+}
+
+func handleShamirPresets() {
+	fmt.Println("Available Shamir Secret Sharing presets:\n")
+	for _, p := range crypto.ShamirPresets {
+		fmt.Printf("  %-8s  %s\n", p.Name, p.Description)
+	}
+	fmt.Println("\nUsage: podx shamir split -i <file> -p <preset>")
 }

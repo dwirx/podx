@@ -32,11 +32,15 @@
 - **Paranoid Mode** — XChaCha20 + Serpent cascade encryption with HMAC-SHA3
 - **Format-Preserving** — `.env` files stay readable (`KEY=ENC[...]`)
 - **Streaming Encryption** — Automatic chunked encryption for files >100MB
+- **Compression** — zstd compression before encryption (auto-skip for already compressed files)
+- **Memory Protection** — Secure wiping of sensitive data from memory
 
 ### Team Collaboration
 - **Multi-Recipient** — Encrypt to multiple team members
 - **Project Workspaces** — Per-project `.podx.yaml` configuration
 - **Git-Friendly** — Commit encrypted files safely
+- **Shamir Secret Sharing** — Split secrets into shares with threshold recovery (2-of-3, 3-of-5, etc.)
+- **QR Code Export** — Export shares as QR codes for secure distribution
 
 ### Security
 - **Pre-commit Hook** — Block commits with exposed secrets
@@ -372,6 +376,44 @@ podx update --beta
 podx rollback
 ```
 
+### Shamir Secret Sharing
+
+Split secrets into multiple shares with threshold recovery:
+
+```bash
+# Split a secret using preset (2-of-3)
+podx shamir split -i secret-key.txt -p 2-of-3 -o ./shares
+
+# Split with custom threshold (3-of-5) and generate QR codes
+podx shamir split -i secret-key.txt -t 3 -n 5 -o ./shares -qr
+
+# List available presets
+podx shamir presets
+
+# Combine shares from directory
+podx shamir combine -d ./shares -o recovered-key.txt
+
+# Combine specific share files
+podx shamir combine -f share1.json,share2.json,share3.json -o recovered-key.txt
+```
+
+#### Presets
+
+| Preset | Threshold | Total | Use Case |
+|--------|-----------|-------|----------|
+| `2-of-3` | 2 | 3 | Small team |
+| `3-of-5` | 3 | 5 | Medium team |
+| `4-of-7` | 4 | 7 | Large team |
+| `5-of-9` | 5 | 9 | Enterprise |
+
+#### Output Files
+
+When splitting, PODX creates:
+- `share-1-of-N_<id>.json` — Share files with checksums
+- `share-1-of-N_<id>.png` — QR code images (with `-qr` flag)
+
+Each share can be safely distributed to different team members or stored in separate locations.
+
 ---
 
 ## Security
@@ -437,6 +479,51 @@ When issues are detected, the commit is blocked with actionable fixes.
 3. **Install pre-commit hook** — Catch mistakes before push
 4. **Rotate keys periodically** — Generate new keys, re-encrypt
 5. **Audit recipients** — Remove ex-team members promptly
+
+### Advanced Crypto Features
+
+#### Memory Protection
+
+Sensitive data (passwords, keys, decrypted secrets) is securely wiped from memory after use:
+
+```go
+// SecureWipe zeros memory with compiler optimization prevention
+crypto.SecureWipe(sensitiveData)
+
+// SecureBuffer auto-wipes on Close()
+buf := crypto.NewSecureBuffer(32)
+defer buf.Wipe()
+
+// SecureString for password handling
+pass := crypto.NewSecureString(password)
+defer pass.Wipe()
+```
+
+#### Compression (zstd)
+
+Files are automatically compressed before encryption for smaller output:
+
+```go
+// Compression levels: Fast (1), Default (3), Better (7), Best (11)
+compressed, _ := crypto.Compress(data, crypto.CompressionDefault)
+
+// Auto-detect if compression is beneficial (skips PNG, JPEG, ZIP, etc.)
+if crypto.ShouldCompress(data) {
+    data, _ = crypto.Compress(data, crypto.CompressionDefault)
+}
+```
+
+#### BLAKE2b MAC
+
+Cryptographic message authentication using BLAKE2b-256:
+
+```go
+// Compute MAC
+mac, _ := crypto.ComputeBlake2bMAC(data, key)
+
+// Verify MAC
+valid, _ := crypto.VerifyBlake2bMAC(data, key, mac)
+```
 
 ---
 
@@ -739,6 +826,9 @@ MIT License - see [LICENSE](LICENSE) for details.
 - [age](https://github.com/FiloSottile/age) — Modern encryption tool
 - [Bubble Tea](https://github.com/charmbracelet/bubbletea) — TUI framework
 - [Lip Gloss](https://github.com/charmbracelet/lipgloss) — Style definitions
+- [HashiCorp Vault Shamir](https://github.com/hashicorp/vault) — Shamir Secret Sharing implementation
+- [zstd](https://github.com/klauspost/compress) — Fast compression library
+- [go-qrcode](https://github.com/skip2/go-qrcode) — QR code generation
 
 ---
 

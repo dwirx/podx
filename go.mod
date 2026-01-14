@@ -8,7 +8,10 @@ require (
 	github.com/charmbracelet/bubbles v0.21.0
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/lipgloss v1.1.0
+	github.com/hashicorp/vault v1.21.2
+	github.com/klauspost/compress v1.18.2
 	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58
+	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	golang.org/x/crypto v0.46.0
 	golang.org/x/term v0.38.0
 	gopkg.in/yaml.v3 v3.0.1
