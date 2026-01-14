@@ -37,8 +37,9 @@ const (
 	StateSelectMethod DialogState = iota
 	StatePasswordInput
 	StateAgeKeyConfirm
-	StateAddRecipient  // New state for adding recipient
-	StateGenerateKey   // State for generating a new key pair
+	StateSelectRecipients // New state for selecting recipients
+	StateAddRecipient     // State for adding recipient
+	StateGenerateKey      // State for generating a new key pair
 	StateProcessing
 	StateComplete
 	StateError
@@ -71,6 +72,10 @@ type EncryptDialogModel struct {
 	generatedPublicKey  string
 	generatedPrivateKey string
 	generatingKey       bool
+
+	// Recipient selection fields
+	selectedRecipients []bool // track which recipients are selected
+	recipientCursor    int    // cursor position in recipient list
 }
 
 // encryptCompleteMsg is sent when encryption is complete
@@ -232,6 +237,8 @@ func (m EncryptDialogModel) Update(msg tea.Msg) (EncryptDialogModel, tea.Cmd) {
 			return m.updatePasswordInput(msg)
 		case StateAgeKeyConfirm:
 			return m.updateAgeKeyConfirm(msg)
+		case StateSelectRecipients:
+			return m.updateSelectRecipients(msg)
 		case StateAddRecipient:
 			return m.updateAddRecipient(msg)
 		case StateGenerateKey:
@@ -373,6 +380,22 @@ func (m EncryptDialogModel) updateAgeKeyConfirm(msg tea.KeyMsg) (EncryptDialogMo
 	switch msg.String() {
 	case "esc":
 		m.state = StateSelectMethod
+	case "s", "S":
+		// Select recipients - go to recipient selection state
+		if m.project != nil && len(m.project.Config.Recipients) > 0 {
+			m.state = StateSelectRecipients
+			m.recipientCursor = 0
+			// Initialize all recipients as selected
+			m.selectedRecipients = make([]bool, len(m.project.Config.Recipients))
+			for i := range m.selectedRecipients {
+				m.selectedRecipients[i] = true
+			}
+			m.errorMsg = ""
+			m.successMsg = ""
+			return m, nil
+		}
+		m.errorMsg = "No recipients available. Add one first."
+		return m, nil
 	case "a", "A":
 		// Add recipient shortcut
 		m.state = StateAddRecipient
@@ -433,6 +456,77 @@ func (m EncryptDialogModel) updateAgeKeyConfirm(msg tea.KeyMsg) (EncryptDialogMo
 		}
 		return m, m.doEncryptAge()
 	}
+	return m, nil
+}
+
+// updateSelectRecipients handles recipient selection state
+func (m EncryptDialogModel) updateSelectRecipients(msg tea.KeyMsg) (EncryptDialogModel, tea.Cmd) {
+	if m.project == nil || len(m.project.Config.Recipients) == 0 {
+		m.state = StateAgeKeyConfirm
+		return m, nil
+	}
+
+	switch msg.String() {
+	case "esc":
+		m.state = StateAgeKeyConfirm
+		m.errorMsg = ""
+		return m, nil
+
+	case "up", "k":
+		if m.recipientCursor > 0 {
+			m.recipientCursor--
+		}
+		return m, nil
+
+	case "down", "j":
+		if m.recipientCursor < len(m.project.Config.Recipients)-1 {
+			m.recipientCursor++
+		}
+		return m, nil
+
+	case " ", "space":
+		// Toggle selection
+		if m.recipientCursor < len(m.selectedRecipients) {
+			m.selectedRecipients[m.recipientCursor] = !m.selectedRecipients[m.recipientCursor]
+		}
+		return m, nil
+
+	case "a":
+		// Select all
+		for i := range m.selectedRecipients {
+			m.selectedRecipients[i] = true
+		}
+		m.successMsg = "All recipients selected"
+		return m, nil
+
+	case "n":
+		// Deselect all
+		for i := range m.selectedRecipients {
+			m.selectedRecipients[i] = false
+		}
+		m.successMsg = "All recipients deselected"
+		return m, nil
+
+	case "enter":
+		// Check if at least one recipient is selected
+		hasSelected := false
+		for _, selected := range m.selectedRecipients {
+			if selected {
+				hasSelected = true
+				break
+			}
+		}
+		if !hasSelected {
+			m.errorMsg = "Select at least one recipient"
+			return m, nil
+		}
+		m.state = StateProcessing
+		if m.isDecrypt {
+			return m, m.doDecryptAge()
+		}
+		return m, m.doEncryptAgeWithSelectedRecipients()
+	}
+
 	return m, nil
 }
 
@@ -808,6 +902,71 @@ func (m EncryptDialogModel) doDecryptAge() tea.Cmd {
 	}
 }
 
+// doEncryptAgeWithSelectedRecipients encrypts files with selected Age recipients
+func (m EncryptDialogModel) doEncryptAgeWithSelectedRecipients() tea.Cmd {
+	return func() tea.Msg {
+		if m.project == nil {
+			return encryptCompleteMsg{success: false, message: "No PODX project found. Run 'podx init' first"}
+		}
+
+		// Build list of selected recipient keys
+		var recipientKeys []string
+		var selectedNames []string
+		for i, r := range m.project.Config.Recipients {
+			if i < len(m.selectedRecipients) && m.selectedRecipients[i] {
+				recipientKeys = append(recipientKeys, r.Key)
+				selectedNames = append(selectedNames, r.Name)
+			}
+		}
+
+		if len(recipientKeys) == 0 {
+			return encryptCompleteMsg{success: false, message: "No recipients selected"}
+		}
+
+		successCount := 0
+		var lastErr error
+		var processedFiles []string
+
+		for _, file := range m.files {
+			if file.IsDir || file.Name == ".." || file.IsEncrypted {
+				continue
+			}
+
+			// Use project's encryption methods
+			baseName := filepath.Base(file.Path)
+			var err error
+			if strings.HasPrefix(baseName, ".env") || strings.HasSuffix(baseName, ".env") {
+				err = m.project.EncryptEnvFile(file.Path, recipientKeys)
+			} else {
+				err = m.project.EncryptRegularFile(file.Path, recipientKeys)
+			}
+
+			if err != nil {
+				lastErr = fmt.Errorf("failed to encrypt %s: %v", file.Name, err)
+				continue
+			}
+
+			// Only delete original after successful encryption
+			if err := os.Remove(file.Path); err != nil {
+				lastErr = fmt.Errorf("encrypted but failed to remove original %s: %v", file.Name, err)
+			}
+
+			processedFiles = append(processedFiles, file.Name+" → "+file.Name+".podx")
+			successCount++
+		}
+
+		if successCount == 0 && lastErr != nil {
+			return encryptCompleteMsg{success: false, message: fmt.Sprintf("Encryption failed: %v", lastErr)}
+		}
+
+		return encryptCompleteMsg{
+			success: true,
+			message: fmt.Sprintf("Encrypted %d file(s) for %d recipient(s)", successCount, len(recipientKeys)),
+			files:   successCount,
+		}
+	}
+}
+
 // doGenerateKey generates a new Age key pair
 func (m EncryptDialogModel) doGenerateKey() tea.Cmd {
 	return func() tea.Msg {
@@ -843,6 +1002,8 @@ func (m EncryptDialogModel) View() string {
 		content = m.renderPasswordInput()
 	case StateAgeKeyConfirm:
 		content = m.renderAgeKeyConfirm()
+	case StateSelectRecipients:
+		content = m.renderSelectRecipients()
 	case StateAddRecipient:
 		content = m.renderAddRecipient()
 	case StateGenerateKey:
@@ -1114,10 +1275,96 @@ func (m EncryptDialogModel) renderAgeKeyConfirm() string {
 	// Footer with clear action
 	if m.project != nil && len(m.project.Config.Recipients) > 0 {
 		s.WriteString(lipgloss.NewStyle().Foreground(ColorPrimary).Bold(true).Render(fmt.Sprintf("[Enter] %s Now", action)))
-		s.WriteString(MutedStyle.Render("  [M] My key  [A] Add recipient  [Esc] Back"))
+		s.WriteString(MutedStyle.Render("  [S] Select  [A] Add  [M] My key  [Esc] Back"))
 	} else {
 		s.WriteString(MutedStyle.Render("[M] My key  [A] Add recipient  [Esc] Back"))
 	}
+
+	return s.String()
+}
+
+// renderSelectRecipients renders the recipient selection view
+func (m EncryptDialogModel) renderSelectRecipients() string {
+	var s strings.Builder
+
+	// Title
+	s.WriteString(lipgloss.NewStyle().Foreground(ColorPrimary).Bold(true).Render("🔑 Select Recipients"))
+	s.WriteString("\n\n")
+
+	// Description
+	s.WriteString(MutedStyle.Render("Choose who can decrypt these files:"))
+	s.WriteString("\n\n")
+
+	// Count selected
+	selectedCount := 0
+	for _, sel := range m.selectedRecipients {
+		if sel {
+			selectedCount++
+		}
+	}
+
+	// Status bar
+	statusStyle := lipgloss.NewStyle().Foreground(ColorSecondary).Bold(true)
+	s.WriteString(statusStyle.Render(fmt.Sprintf("Selected: %d/%d recipients", selectedCount, len(m.project.Config.Recipients))))
+	s.WriteString("\n\n")
+
+	// Recipient list
+	if m.project != nil {
+		for i, r := range m.project.Config.Recipients {
+			// Cursor indicator
+			cursor := "  "
+			if i == m.recipientCursor {
+				cursor = lipgloss.NewStyle().Foreground(ColorPrimary).Bold(true).Render("> ")
+			}
+
+			// Checkbox
+			checkbox := "[ ]"
+			if i < len(m.selectedRecipients) && m.selectedRecipients[i] {
+				checkbox = lipgloss.NewStyle().Foreground(ColorSuccess).Bold(true).Render("[✓]")
+			}
+
+			// Recipient info
+			keyPreview := r.Key
+			if len(keyPreview) > 20 {
+				keyPreview = keyPreview[:20] + "..."
+			}
+
+			// Highlight current row
+			nameStyle := lipgloss.NewStyle()
+			if i == m.recipientCursor {
+				nameStyle = nameStyle.Foreground(ColorPrimary).Bold(true)
+			}
+
+			s.WriteString(fmt.Sprintf("%s%s %s\n", cursor, checkbox, nameStyle.Render(r.Name)))
+			s.WriteString(MutedStyle.Render(fmt.Sprintf("       %s\n", keyPreview)))
+		}
+	}
+	s.WriteString("\n")
+
+	// Suggestions box
+	s.WriteString(CardTitleStyle.Render("Quick Actions:"))
+	s.WriteString("\n")
+	s.WriteString(MutedStyle.Render("  [Space] Toggle selection"))
+	s.WriteString("\n")
+	s.WriteString(MutedStyle.Render("  [a] Select all  [n] Deselect all"))
+	s.WriteString("\n\n")
+
+	// Error/success messages
+	if m.errorMsg != "" {
+		s.WriteString(ErrorStyle.Render("✗ " + m.errorMsg))
+		s.WriteString("\n\n")
+	}
+	if m.successMsg != "" {
+		s.WriteString(SuccessStyle.Render("✓ " + m.successMsg))
+		s.WriteString("\n\n")
+	}
+
+	// Footer
+	if selectedCount > 0 {
+		s.WriteString(lipgloss.NewStyle().Foreground(ColorPrimary).Bold(true).Render("[Enter] Encrypt"))
+		s.WriteString(MutedStyle.Render(fmt.Sprintf(" for %d recipient(s)  ", selectedCount)))
+	}
+	s.WriteString(MutedStyle.Render("[Esc] Back"))
 
 	return s.String()
 }
