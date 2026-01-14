@@ -136,14 +136,19 @@ USAGE:
 
 func handleEncrypt(args []string) {
 	fs := flag.NewFlagSet("encrypt", flag.ExitOnError)
-	algo := fs.String("a", "aes-gcm", "Algorithm (aes-gcm or chacha20)")
-	fs.String("algorithm", "aes-gcm", "")
+	algo := fs.String("a", "", "Algorithm (aes-gcm, xchacha20, cascade)")
+	fs.String("algorithm", "", "")
+	mode := fs.String("m", "normal", "Encryption mode (normal or paranoid)")
+	fs.String("mode", "normal", "")
+	cipher := fs.String("c", "", "Cipher (aes-gcm, xchacha20) - overrides mode default")
+	fs.String("cipher", "", "")
 	input := fs.String("i", "", "Input file")
 	fs.String("input", "", "")
 	output := fs.String("o", "", "Output file")
 	fs.String("output", "", "")
 	password := fs.String("p", "", "Password")
 	fs.String("password", "", "")
+	memoryMB := fs.Uint("memory", 0, "Argon2id memory in MB (0 for auto)")
 
 	if err := fs.Parse(args); err != nil {
 		fmt.Println("Error:", err)
@@ -155,58 +160,86 @@ func handleEncrypt(args []string) {
 		os.Exit(1)
 	}
 
-	// Get password
-	pass := getPassword(*password, "Enter password: ")
-
-	// Derive key
-	key, salt, err := crypto.DeriveKey([]byte(pass), nil)
-	if err != nil {
-		fmt.Println("Error deriving key:", err)
-		os.Exit(1)
-	}
-
-	// Read input file
-	plaintext, err := os.ReadFile(*input)
-	if err != nil {
-		fmt.Println("Error reading input:", err)
-		os.Exit(1)
-	}
-
-	// Get encryptor
-	enc, err := crypto.NewEncryptor(crypto.Algorithm(*algo))
+	// Parse mode
+	encMode, err := crypto.ParseEncryptMode(*mode)
 	if err != nil {
 		fmt.Println("Error:", err)
 		os.Exit(1)
 	}
 
-	// Encrypt
-	ciphertext, err := enc.Encrypt(plaintext, key)
+	// Determine cipher type
+	var cipherType crypto.CipherType
+	if *cipher != "" {
+		cipherType, err = crypto.ParseCipher(*cipher)
+		if err != nil {
+			fmt.Println("Error:", err)
+			os.Exit(1)
+		}
+	} else if *algo != "" {
+		// Legacy -a flag support
+		cipherType, err = crypto.ParseCipher(*algo)
+		if err != nil {
+			fmt.Println("Error:", err)
+			os.Exit(1)
+		}
+	} else {
+		// Default based on mode
+		if encMode == crypto.ModeParanoid {
+			cipherType = crypto.CipherCascade
+		} else {
+			cipherType = crypto.CipherAESGCM
+		}
+	}
+
+	// Get password
+	pass := getPassword(*password, "Enter password: ")
+
+	// Build encryption options
+	opts := &crypto.EncryptOptions{
+		Mode:     encMode,
+		Cipher:   cipherType,
+		MemoryMB: uint32(*memoryMB),
+	}
+
+	// Check if streaming should be used
+	useStreaming, _ := crypto.ShouldUseStreaming(*input)
+	if useStreaming {
+		fmt.Println("Large file detected, using streaming encryption...")
+		err = crypto.StreamingEncryptFile(*input, *output, []byte(pass), opts, func(processed, total int64) {
+			pct := float64(processed) / float64(total) * 100
+			fmt.Printf("\rProgress: %.1f%%", pct)
+		})
+		fmt.Println()
+	} else {
+		// Read input file
+		plaintext, readErr := os.ReadFile(*input)
+		if readErr != nil {
+			fmt.Println("Error reading input:", readErr)
+			os.Exit(1)
+		}
+
+		// Encrypt using v2 format
+		ciphertext, encErr := crypto.EncryptV2(plaintext, []byte(pass), opts)
+		if encErr != nil {
+			fmt.Println("Error encrypting:", encErr)
+			os.Exit(1)
+		}
+
+		err = os.WriteFile(*output, ciphertext, 0600)
+	}
+
 	if err != nil {
-		fmt.Println("Error encrypting:", err)
+		fmt.Println("Error:", err)
 		os.Exit(1)
 	}
 
-	// Write output: [salt (16 bytes)][algo (1 byte)][ciphertext]
-	algoB := byte(0)
-	if *algo == "chacha20" {
-		algoB = 1
-	}
-
-	out := append(salt, algoB)
-	out = append(out, ciphertext...)
-
-	if err := os.WriteFile(*output, out, 0600); err != nil {
-		fmt.Println("Error writing output:", err)
-		os.Exit(1)
-	}
-
-	fmt.Printf("✓ Encrypted %s → %s (algorithm: %s)\n", *input, *output, *algo)
+	cipherName := crypto.CipherString(cipherType)
+	modeName := crypto.EncryptModeString(encMode)
+	fmt.Printf("✓ Encrypted %s → %s (mode: %s, cipher: %s)\n", *input, *output, modeName, cipherName)
 }
 
 func handleDecrypt(args []string) {
 	fs := flag.NewFlagSet("decrypt", flag.ExitOnError)
-	fs.String("a", "", "Algorithm (auto-detected)")
-	fs.String("algorithm", "", "")
 	input := fs.String("i", "", "Input file")
 	fs.String("input", "", "")
 	output := fs.String("o", "", "Output file")
@@ -227,55 +260,21 @@ func handleDecrypt(args []string) {
 	// Get password
 	pass := getPassword(*password, "Enter password: ")
 
-	// Read input file
-	data, err := os.ReadFile(*input)
+	// Use auto-detection for decryption
+	err := crypto.DecryptFileAuto(*input, *output, []byte(pass), func(processed, total int64) {
+		pct := float64(processed) / float64(total) * 100
+		fmt.Printf("\rProgress: %.1f%%", pct)
+	})
+
 	if err != nil {
-		fmt.Println("Error reading input:", err)
+		fmt.Println("Error decrypting:", err)
 		os.Exit(1)
 	}
 
-	if len(data) < crypto.SaltSize+1 {
-		fmt.Println("Error: file too small or corrupted")
-		os.Exit(1)
-	}
-
-	// Extract salt and algo
-	salt := data[:crypto.SaltSize]
-	algoB := data[crypto.SaltSize]
-	ciphertext := data[crypto.SaltSize+1:]
-
-	algo := crypto.AlgoAESGCM
-	if algoB == 1 {
-		algo = crypto.AlgoChaCha20
-	}
-
-	// Derive key
-	key, err := crypto.DeriveKeyWithSalt([]byte(pass), salt)
-	if err != nil {
-		fmt.Println("Error deriving key:", err)
-		os.Exit(1)
-	}
-
-	// Get encryptor
-	enc, err := crypto.NewEncryptor(algo)
-	if err != nil {
-		fmt.Println("Error:", err)
-		os.Exit(1)
-	}
-
-	// Decrypt
-	plaintext, err := enc.Decrypt(ciphertext, key)
-	if err != nil {
-		fmt.Println("Error decrypting (wrong password?):", err)
-		os.Exit(1)
-	}
-
-	if err := os.WriteFile(*output, plaintext, 0600); err != nil {
-		fmt.Println("Error writing output:", err)
-		os.Exit(1)
-	}
-
-	fmt.Printf("✓ Decrypted %s → %s (algorithm: %s)\n", *input, *output, algo)
+	// Get format info for display
+	data, _ := os.ReadFile(*input)
+	info, _ := crypto.EncryptV2Info(data)
+	fmt.Printf("✓ Decrypted %s → %s (%s)\n", *input, *output, info)
 }
 
 func handleEnv(subcmd string, args []string) {

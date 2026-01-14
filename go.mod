@@ -4,9 +4,11 @@ go 1.25.5
 
 require (
 	filippo.io/age v1.2.1
+	github.com/aead/serpent v0.0.0-20160714141033-fba169763ea6
 	github.com/charmbracelet/bubbles v0.21.0
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/lipgloss v1.1.0
+	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58
 	golang.org/x/crypto v0.46.0
 	golang.org/x/term v0.38.0
 	gopkg.in/yaml.v3 v3.0.1

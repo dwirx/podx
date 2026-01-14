@@ -9,6 +9,23 @@ import (
 	"io"
 )
 
+// Helper functions for cipher creation
+func newAESCipher(key []byte) (cipher.Block, error) {
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create AES cipher: %w", err)
+	}
+	return block, nil
+}
+
+func newGCM(block cipher.Block) (cipher.AEAD, error) {
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create GCM: %w", err)
+	}
+	return gcm, nil
+}
+
 const (
 	// AESKeySize adalah ukuran key untuk AES-256 (32 bytes)
 	AESKeySize = 32

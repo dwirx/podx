@@ -26,10 +26,18 @@ type Recipient struct {
 
 // Config represents .podx.yaml project configuration
 type Config struct {
-	Version    int         `yaml:"version"`
-	Backend    string      `yaml:"backend"`
-	Recipients []Recipient `yaml:"recipients"`
-	Secrets    []string    `yaml:"secrets"`
+	Version    int              `yaml:"version"`
+	Backend    string           `yaml:"backend"`
+	Recipients []Recipient      `yaml:"recipients"`
+	Secrets    []string         `yaml:"secrets"`
+	Encryption *EncryptionConfig `yaml:"encryption,omitempty"`
+}
+
+// EncryptionConfig holds encryption settings
+type EncryptionConfig struct {
+	Mode     string `yaml:"mode,omitempty"`     // "normal" or "paranoid"
+	Cipher   string `yaml:"cipher,omitempty"`   // "aes-gcm", "xchacha20", "cascade"
+	MemoryMB uint32 `yaml:"memory_mb,omitempty"` // Argon2id memory in MB
 }
 
 // Project represents a PODX-enabled project

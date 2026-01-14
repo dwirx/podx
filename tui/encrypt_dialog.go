@@ -22,6 +22,14 @@ const (
 	MethodAgeKey
 )
 
+// EncryptModeOption represents the encryption mode (normal/paranoid)
+type EncryptModeOption int
+
+const (
+	EncryptModeNormal EncryptModeOption = iota
+	EncryptModeParanoid
+)
+
 // DialogState represents the current state of the dialog
 type DialogState int
 
@@ -41,6 +49,7 @@ type EncryptDialogModel struct {
 	visible      bool
 	state        DialogState
 	method       EncryptMethod
+	encryptMode  EncryptModeOption // normal or paranoid
 	selectedIdx  int
 	files        []FileInfo
 	password     textinput.Model
@@ -250,6 +259,12 @@ func (m EncryptDialogModel) updateMethodSelection(msg tea.KeyMsg) (EncryptDialog
 		if m.selectedIdx < 1 {
 			m.selectedIdx++
 		}
+	case "n", "N":
+		// Switch to normal mode
+		m.encryptMode = EncryptModeNormal
+	case "p", "P":
+		// Switch to paranoid mode
+		m.encryptMode = EncryptModeParanoid
 	case "enter", "l":
 		if m.selectedIdx == 0 {
 			m.method = MethodPassword
@@ -554,15 +569,17 @@ func (m EncryptDialogModel) doEncryptPassword() tea.Cmd {
 	return func() tea.Msg {
 		password := m.password.Value()
 
-		// Derive key with new salt
-		key, salt, err := crypto.DeriveKey([]byte(password), nil)
-		if err != nil {
-			return encryptCompleteMsg{success: false, message: err.Error()}
+		// Determine encryption mode and cipher
+		mode := crypto.ModeNormal
+		cipher := crypto.CipherAESGCM
+		if m.encryptMode == EncryptModeParanoid {
+			mode = crypto.ModeParanoid
+			cipher = crypto.CipherCascade
 		}
 
-		enc, err := crypto.NewEncryptor(crypto.AlgoAESGCM)
-		if err != nil {
-			return encryptCompleteMsg{success: false, message: err.Error()}
+		opts := &crypto.EncryptOptions{
+			Mode:   mode,
+			Cipher: cipher,
 		}
 
 		successCount := 0
@@ -580,22 +597,16 @@ func (m EncryptDialogModel) doEncryptPassword() tea.Cmd {
 				continue
 			}
 
-			// Encrypt
-			ciphertext, err := enc.Encrypt(content, key)
+			// Encrypt using v2 format
+			ciphertext, err := crypto.EncryptV2(content, []byte(password), opts)
 			if err != nil {
 				lastErr = err
 				continue
 			}
 
-			// Format: [salt (16 bytes)][algo (1 byte = 0x01 for AES-GCM)][ciphertext]
-			output := make([]byte, 0, 17+len(ciphertext))
-			output = append(output, salt...)
-			output = append(output, 0x01) // AES-GCM marker
-			output = append(output, ciphertext...)
-
 			// Write encrypted file
 			outPath := file.Path + ".podx"
-			if err := os.WriteFile(outPath, output, 0600); err != nil {
+			if err := os.WriteFile(outPath, ciphertext, 0600); err != nil {
 				lastErr = err
 				continue
 			}
@@ -612,9 +623,14 @@ func (m EncryptDialogModel) doEncryptPassword() tea.Cmd {
 			return encryptCompleteMsg{success: false, message: fmt.Sprintf("Encryption failed: %v", lastErr)}
 		}
 
+		modeStr := "AES-GCM"
+		if m.encryptMode == EncryptModeParanoid {
+			modeStr = "XChaCha20+Serpent (paranoid)"
+		}
+
 		return encryptCompleteMsg{
 			success: true,
-			message: fmt.Sprintf("🔐 Encrypted %d file(s) with AES-GCM", successCount),
+			message: fmt.Sprintf("🔐 Encrypted %d file(s) with %s", successCount, modeStr),
 			files:   successCount,
 		}
 	}
@@ -640,39 +656,8 @@ func (m EncryptDialogModel) doDecryptPassword() tea.Cmd {
 				continue
 			}
 
-			// Check minimum size (16 salt + 1 algo + some ciphertext)
-			if len(content) < 18 {
-				lastErr = fmt.Errorf("invalid encrypted file format")
-				continue
-			}
-
-			// Extract salt and derive key
-			salt := content[:16]
-			algoMarker := content[16]
-			ciphertext := content[17:]
-
-			// Derive key with salt
-			key, err := crypto.DeriveKeyWithSalt([]byte(password), salt)
-			if err != nil {
-				lastErr = err
-				continue
-			}
-
-			// Get encryptor based on algo marker
-			var enc crypto.Encryptor
-			switch algoMarker {
-			case 0x01:
-				enc, _ = crypto.NewEncryptor(crypto.AlgoAESGCM)
-			case 0x02:
-				enc, _ = crypto.NewEncryptor(crypto.AlgoChaCha20)
-			default:
-				// Try Age decryption instead
-				lastErr = fmt.Errorf("not a password-encrypted file (try Age key)")
-				continue
-			}
-
-			// Decrypt
-			plaintext, err := enc.Decrypt(ciphertext, key)
+			// Use auto-detection to decrypt (supports v1 and v2 formats)
+			plaintext, err := crypto.DetectAndDecrypt(content, []byte(password))
 			if err != nil {
 				lastErr = fmt.Errorf("wrong password or corrupted file")
 				continue
@@ -889,12 +874,42 @@ func (m EncryptDialogModel) renderMethodSelection() string {
 	s.WriteString(TitleStyle.Render(title))
 	s.WriteString("\n\n")
 
+	// Encryption Mode selection (only for encryption)
+	if !m.isDecrypt {
+		s.WriteString("Security Mode:\n")
+
+		// Normal mode option
+		normalLabel := "  🔰 Normal"
+		if m.encryptMode == EncryptModeNormal {
+			normalLabel = "  ✓ 🔰 Normal"
+			s.WriteString(SuccessStyle.Render(normalLabel))
+		} else {
+			s.WriteString(MutedStyle.Render(normalLabel))
+		}
+		s.WriteString("  ")
+
+		// Paranoid mode option
+		paranoidLabel := "🛡️  Paranoid"
+		if m.encryptMode == EncryptModeParanoid {
+			paranoidLabel = "✓ 🛡️  Paranoid"
+			s.WriteString(SuccessStyle.Render(paranoidLabel))
+		} else {
+			s.WriteString(MutedStyle.Render(paranoidLabel))
+		}
+		s.WriteString("\n")
+		s.WriteString(MutedStyle.Render("     Press [N] Normal  [P] Paranoid"))
+		s.WriteString("\n\n")
+	}
+
 	s.WriteString("Choose encryption method:\n\n")
 
 	// Password option
 	passwordLabel := "  🔐 Password (AES-GCM)"
+	if m.encryptMode == EncryptModeParanoid && !m.isDecrypt {
+		passwordLabel = "  🔐 Password (XChaCha20+Serpent)"
+	}
 	if m.selectedIdx == 0 {
-		passwordLabel = "> 🔐 Password (AES-GCM)"
+		passwordLabel = "> " + passwordLabel[2:]
 		s.WriteString(SelectedStyle.Render(passwordLabel))
 	} else {
 		s.WriteString(passwordLabel)

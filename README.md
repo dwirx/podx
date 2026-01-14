@@ -28,8 +28,10 @@
 ### Encryption
 - **Age & GPG Encryption** — Modern X25519 asymmetric or traditional GPG
 - **Password Encryption** — AES-256-GCM with Argon2id key derivation
-- **ChaCha20-Poly1305** — ARM-optimized alternative to AES
+- **XChaCha20-Poly1305** — Extended nonce ChaCha20 for safer random nonces
+- **Paranoid Mode** — XChaCha20 + Serpent cascade encryption with HMAC-SHA3
 - **Format-Preserving** — `.env` files stay readable (`KEY=ENC[...]`)
+- **Streaming Encryption** — Automatic chunked encryption for files >100MB
 
 ### Team Collaboration
 - **Multi-Recipient** — Encrypt to multiple team members
@@ -293,13 +295,19 @@ podx status
 ### File Commands
 
 ```bash
-# Encrypt single file with password
-podx encrypt -a aes-gcm -i secret.txt -o secret.enc
+# Encrypt single file with password (normal mode, AES-GCM)
+podx encrypt -i secret.txt -o secret.enc
 
-# Encrypt with ChaCha20 (ARM-optimized)
-podx encrypt -a chacha20 -i secret.txt -o secret.enc
+# Encrypt with XChaCha20
+podx encrypt -c xchacha20 -i secret.txt -o secret.enc
 
-# Decrypt file
+# Encrypt with paranoid mode (XChaCha20 + Serpent cascade)
+podx encrypt -m paranoid -i secret.txt -o secret.enc
+
+# Encrypt with specific cipher
+podx encrypt -m normal -c xchacha20 -i secret.txt -o secret.enc
+
+# Decrypt file (auto-detects encryption format)
 podx decrypt -i secret.enc -o secret.txt
 
 # Encrypt .env file (format-preserving)
@@ -308,6 +316,13 @@ podx env encrypt -i .env -o .env.podx
 # Decrypt .env file
 podx env decrypt -i .env.podx -o .env
 ```
+
+### Encryption Modes
+
+| Mode | Cipher | MAC | KDF | Use Case |
+|------|--------|-----|-----|----------|
+| `normal` | AES-GCM or XChaCha20 | BLAKE2b | Argon2id (4 passes, 256MB) | Standard security |
+| `paranoid` | XChaCha20 + Serpent | HMAC-SHA3-512 | Argon2id (8 passes, 512MB) | Maximum security |
 
 ### Key Management
 
