@@ -355,6 +355,7 @@ func (m DashboardModel) renderProjectInfoWithWidth(width int) string {
 	var lines []string
 
 	lines = append(lines, CardTitleStyle.Render("Project Info"))
+	lines = append(lines, "")
 
 	// Path - truncate based on available width
 	path := m.project.RootDir
@@ -363,14 +364,19 @@ func (m DashboardModel) renderProjectInfoWithWidth(width int) string {
 		maxPathLen = 20
 	}
 	path = TruncateText(path, maxPathLen)
-	lines = append(lines, fmt.Sprintf("  Path:       %s", MutedStyle.Render(path)))
+	lines = append(lines, fmt.Sprintf("  Path:       %s", lipgloss.NewStyle().Foreground(ColorSecondary).Render(path)))
 
-	// Backend
-	lines = append(lines, fmt.Sprintf("  Backend:    %s", SuccessStyle.Render(m.project.Config.Backend)))
+	// Backend with icon
+	backendIcon := "🔐"
+	if m.project.Config.Backend == "gpg" {
+		backendIcon = "🔑"
+	}
+	lines = append(lines, fmt.Sprintf("  Backend:    %s %s", backendIcon, SuccessStyle.Render(m.project.Config.Backend)))
 
-	// Recipients
+	// Recipients with count badge
 	recipientCount := len(m.project.Config.Recipients)
-	lines = append(lines, fmt.Sprintf("  Recipients: %s", SuccessStyle.Render(fmt.Sprintf("%d", recipientCount))))
+	countBadge := lipgloss.NewStyle().Foreground(ColorBg).Background(ColorSecondary).Padding(0, 1).Bold(true).Render(fmt.Sprintf("%d", recipientCount))
+	lines = append(lines, fmt.Sprintf("  Recipients: %s", countBadge))
 
 	for _, r := range m.project.Config.Recipients {
 		keyPreview := r.Key
@@ -380,9 +386,10 @@ func (m DashboardModel) renderProjectInfoWithWidth(width int) string {
 		lines = append(lines, MutedStyle.Render(fmt.Sprintf("    - %s (%s)", r.Name, keyPreview)))
 	}
 
-	// Secrets patterns
+	// Secrets patterns with count
 	secretCount := len(m.project.Config.Secrets)
-	lines = append(lines, fmt.Sprintf("  Secrets:    %s patterns", SuccessStyle.Render(fmt.Sprintf("%d", secretCount))))
+	secretBadge := lipgloss.NewStyle().Foreground(ColorBg).Background(ColorWarning).Padding(0, 1).Bold(true).Render(fmt.Sprintf("%d", secretCount))
+	lines = append(lines, fmt.Sprintf("  Secrets:    %s patterns", secretBadge))
 	for _, s := range m.project.Config.Secrets {
 		lines = append(lines, MutedStyle.Render(fmt.Sprintf("    - %s", s)))
 	}
@@ -404,9 +411,10 @@ func (m DashboardModel) renderSecurityStatusWithWidth(width int) string {
 	var lines []string
 
 	lines = append(lines, CardTitleStyle.Render("Security Status"))
+	lines = append(lines, "")
 
 	if m.checkResult == nil {
-		lines = append(lines, MutedStyle.Render("  Checking..."))
+		lines = append(lines, MutedStyle.Render("  "+RenderSpinner(0)+" Checking..."))
 		style := CardStyle.Copy()
 		if width > 0 {
 			style = style.Width(width)
@@ -425,9 +433,9 @@ func (m DashboardModel) renderSecurityStatusWithWidth(width int) string {
 
 	// Encryption Issues
 	if len(m.checkResult.EncryptionIssues) == 0 {
-		lines = append(lines, SuccessStyle.Render("  [OK] Encryption"))
+		lines = append(lines, SuccessStyle.Render("  [OK] ")+"Encryption")
 	} else {
-		lines = append(lines, ErrorStyle.Render("  [!!] Encryption: Issues found"))
+		lines = append(lines, ErrorStyle.Render("  [!!] ")+"Encryption: "+ErrorStyle.Render("Issues found"))
 		for _, issue := range m.checkResult.EncryptionIssues {
 			lines = append(lines, WarningStyle.Render(fmt.Sprintf("       - %s", issue)))
 		}
@@ -435,9 +443,9 @@ func (m DashboardModel) renderSecurityStatusWithWidth(width int) string {
 
 	// Gitignore Issues
 	if len(m.checkResult.GitignoreIssues) == 0 {
-		lines = append(lines, SuccessStyle.Render("  [OK] Gitignore"))
+		lines = append(lines, SuccessStyle.Render("  [OK] ")+"Gitignore")
 	} else {
-		lines = append(lines, WarningStyle.Render("  [!!] Gitignore: Missing entries"))
+		lines = append(lines, WarningStyle.Render("  [!!] ")+"Gitignore: "+WarningStyle.Render("Missing entries"))
 		for _, pattern := range m.checkResult.GitignoreIssues {
 			lines = append(lines, WarningStyle.Render(fmt.Sprintf("       - %s", pattern)))
 		}
@@ -445,17 +453,17 @@ func (m DashboardModel) renderSecurityStatusWithWidth(width int) string {
 
 	// Secret Findings
 	if len(m.checkResult.SecretFindings) == 0 {
-		lines = append(lines, SuccessStyle.Render("  [OK] No secrets detected"))
+		lines = append(lines, SuccessStyle.Render("  [OK] ")+"No secrets detected")
 	} else {
-		lines = append(lines, ErrorStyle.Render(fmt.Sprintf("  [!!] %d files with secrets", len(m.checkResult.SecretFindings))))
+		lines = append(lines, ErrorStyle.Render("  [!!] ")+ErrorStyle.Render(fmt.Sprintf("%d files with secrets", len(m.checkResult.SecretFindings))))
 	}
 
 	// Hook status
 	hookInstalled := security.IsHookInstalled(m.cwd)
 	if hookInstalled {
-		lines = append(lines, SuccessStyle.Render("  [OK] Pre-commit hook"))
+		lines = append(lines, SuccessStyle.Render("  [OK] ")+"Pre-commit hook")
 	} else {
-		lines = append(lines, WarningStyle.Render("  [--] No pre-commit hook"))
+		lines = append(lines, MutedStyle.Render("  [--] ")+"No pre-commit hook")
 	}
 
 	// Local key status
@@ -464,10 +472,10 @@ func (m DashboardModel) renderSecurityStatusWithWidth(width int) string {
 		if len(keyPreview) > 20 {
 			keyPreview = keyPreview[:20] + "..."
 		}
-		lines = append(lines, SuccessStyle.Render("  [OK] Local Age key"))
-		lines = append(lines, MutedStyle.Render(fmt.Sprintf("       %s", keyPreview)))
+		lines = append(lines, SuccessStyle.Render("  [OK] ")+"Local Age key")
+		lines = append(lines, lipgloss.NewStyle().Foreground(ColorSecondary).Render(fmt.Sprintf("       %s", keyPreview)))
 	} else {
-		lines = append(lines, WarningStyle.Render("  [--] No local Age key"))
+		lines = append(lines, MutedStyle.Render("  [--] ")+"No local Age key")
 		lines = append(lines, MutedStyle.Render("       Press [K] to generate"))
 	}
 
@@ -488,10 +496,12 @@ func (m DashboardModel) renderQuickActionsWithWidth(width int) string {
 	var lines []string
 
 	lines = append(lines, CardTitleStyle.Render("Quick Actions"))
+	lines = append(lines, "")
 	lines = append(lines, MutedStyle.Render("  Use j/k to navigate, Enter to execute"))
 	lines = append(lines, "")
 
 	actionIcons := []string{"E", "D", "C", "H", "K"}
+	actionEmojis := []string{"🔐", "🔓", "🛡️", "🪝", "🔑"}
 	actionDescs := []string{
 		"Encrypt all secret files",
 		"Decrypt all secret files",
@@ -502,14 +512,17 @@ func (m DashboardModel) renderQuickActionsWithWidth(width int) string {
 
 	for i, action := range m.actions {
 		icon := actionIcons[i]
+		emoji := actionEmojis[i]
 		desc := actionDescs[i]
 		if i == m.selected {
-			// Selected item with highlight
-			selectedLine := fmt.Sprintf("  > [%s] %s", icon, action)
+			// Selected item with highlight and emoji
+			selectedLine := fmt.Sprintf("  > [%s] %s %s", icon, emoji, action)
 			lines = append(lines, SelectedStyle.Render(selectedLine))
 			lines = append(lines, MutedStyle.Render("       "+desc))
 		} else {
-			lines = append(lines, fmt.Sprintf("    [%s] %s", MutedStyle.Render(icon), action))
+			// Unselected item with dimmed icon
+			keyStyle := lipgloss.NewStyle().Foreground(ColorMuted).Bold(true)
+			lines = append(lines, fmt.Sprintf("    [%s] %s %s", keyStyle.Render(icon), emoji, action))
 		}
 	}
 

@@ -1249,28 +1249,90 @@ func (m EncryptDialogModel) renderGenerateKey() string {
 
 // renderProcessing renders the processing view
 func (m EncryptDialogModel) renderProcessing() string {
+	var s strings.Builder
+
 	action := "Encrypting"
+	icon := "🔐"
 	if m.isDecrypt {
 		action = "Decrypting"
+		icon = "🔓"
 	}
-	return TitleStyle.Render(fmt.Sprintf("⏳ %s...", action))
+
+	// Animated header
+	s.WriteString(lipgloss.NewStyle().Foreground(ColorPrimary).Bold(true).Render("╔══════════════════════════════════╗"))
+	s.WriteString("\n")
+	s.WriteString(lipgloss.NewStyle().Foreground(ColorPrimary).Bold(true).Render(fmt.Sprintf("║     %s %s...          ║", icon, action)))
+	s.WriteString("\n")
+	s.WriteString(lipgloss.NewStyle().Foreground(ColorPrimary).Bold(true).Render("╚══════════════════════════════════╝"))
+	s.WriteString("\n\n")
+
+	// Spinner and message
+	s.WriteString(RenderSpinner(0))
+	s.WriteString(" Processing ")
+	s.WriteString(lipgloss.NewStyle().Foreground(ColorSecondary).Bold(true).Render(fmt.Sprintf("%d", len(m.files))))
+	s.WriteString(" file(s)...")
+	s.WriteString("\n\n")
+
+	// Show encryption mode
+	if !m.isDecrypt {
+		modeInfo := "AES-256-GCM"
+		if m.encryptMode == EncryptModeParanoid {
+			modeInfo = "XChaCha20 + Serpent"
+		}
+		s.WriteString(MutedStyle.Render("Mode: "))
+		s.WriteString(lipgloss.NewStyle().Foreground(ColorSecondary).Render(modeInfo))
+		s.WriteString("\n")
+	}
+
+	s.WriteString("\n")
+	s.WriteString(MutedStyle.Render("Please wait..."))
+
+	return s.String()
 }
 
 // renderComplete renders the completion view
 func (m EncryptDialogModel) renderComplete() string {
 	var s strings.Builder
 
-	// Success title
-	s.WriteString(TitleStyle.Render("✅ Operation Complete"))
+	// Success header with nice box
+	if m.isDecrypt {
+		s.WriteString(lipgloss.NewStyle().Foreground(ColorSuccess).Bold(true).Render("╔══════════════════════════════════╗"))
+		s.WriteString("\n")
+		s.WriteString(lipgloss.NewStyle().Foreground(ColorSuccess).Bold(true).Render("║     DECRYPTION SUCCESSFUL        ║"))
+		s.WriteString("\n")
+		s.WriteString(lipgloss.NewStyle().Foreground(ColorSuccess).Bold(true).Render("╚══════════════════════════════════╝"))
+	} else {
+		s.WriteString(lipgloss.NewStyle().Foreground(ColorSuccess).Bold(true).Render("╔══════════════════════════════════╗"))
+		s.WriteString("\n")
+		s.WriteString(lipgloss.NewStyle().Foreground(ColorSuccess).Bold(true).Render("║     ENCRYPTION SUCCESSFUL        ║"))
+		s.WriteString("\n")
+		s.WriteString(lipgloss.NewStyle().Foreground(ColorSuccess).Bold(true).Render("╚══════════════════════════════════╝"))
+	}
 	s.WriteString("\n\n")
 
-	// Success message
-	s.WriteString(SuccessStyle.Render(m.successMsg))
+	// Status badge
+	s.WriteString(BadgeSuccessStyle.Render(" SUCCESS "))
+	s.WriteString("  ")
+	s.WriteString(m.successMsg)
 	s.WriteString("\n\n")
+
+	// Show encryption mode details
+	if !m.isDecrypt {
+		modeInfo := "AES-256-GCM"
+		if m.encryptMode == EncryptModeParanoid {
+			modeInfo = "XChaCha20-Poly1305 + Serpent (Cascade)"
+		}
+		s.WriteString(MutedStyle.Render("Cipher: "))
+		s.WriteString(lipgloss.NewStyle().Foreground(ColorSecondary).Render(modeInfo))
+		s.WriteString("\n")
+		s.WriteString(MutedStyle.Render("KDF:    "))
+		s.WriteString(lipgloss.NewStyle().Foreground(ColorSecondary).Render("Argon2id"))
+		s.WriteString("\n\n")
+	}
 
 	// Show files that were processed
 	if len(m.files) > 0 {
-		s.WriteString(MutedStyle.Render("Files processed:"))
+		s.WriteString(CardTitleStyle.Render("Files Processed:"))
 		s.WriteString("\n")
 		for i, file := range m.files {
 			if i >= 5 {
@@ -1279,15 +1341,24 @@ func (m EncryptDialogModel) renderComplete() string {
 				break
 			}
 			if m.isDecrypt {
-				s.WriteString(fmt.Sprintf("  📄 %s\n", strings.TrimSuffix(file.Name, ".podx")))
+				s.WriteString(SuccessStyle.Render("  [OK] "))
+				s.WriteString(fmt.Sprintf("📄 %s\n", strings.TrimSuffix(file.Name, ".podx")))
 			} else {
-				s.WriteString(fmt.Sprintf("  🔒 %s.podx\n", file.Name))
+				s.WriteString(SuccessStyle.Render("  [OK] "))
+				s.WriteString(fmt.Sprintf("🔒 %s.podx\n", file.Name))
 			}
 		}
 		s.WriteString("\n")
 	}
 
-	s.WriteString(MutedStyle.Render("[Enter] Close"))
+	// Output location
+	s.WriteString(MutedStyle.Render("Output: "))
+	s.WriteString(m.outputPath)
+	s.WriteString("\n\n")
+
+	// Footer with highlighted Enter
+	s.WriteString(lipgloss.NewStyle().Foreground(ColorPrimary).Bold(true).Render("[Enter]"))
+	s.WriteString(MutedStyle.Render(" Close"))
 	return s.String()
 }
 
@@ -1295,26 +1366,58 @@ func (m EncryptDialogModel) renderComplete() string {
 func (m EncryptDialogModel) renderError() string {
 	var s strings.Builder
 
-	// Error title
-	s.WriteString(ErrorStyle.Render("❌ Operation Failed"))
+	// Error header with box
+	s.WriteString(lipgloss.NewStyle().Foreground(ColorError).Bold(true).Render("╔══════════════════════════════════╗"))
+	s.WriteString("\n")
+	s.WriteString(lipgloss.NewStyle().Foreground(ColorError).Bold(true).Render("║        OPERATION FAILED          ║"))
+	s.WriteString("\n")
+	s.WriteString(lipgloss.NewStyle().Foreground(ColorError).Bold(true).Render("╚══════════════════════════════════╝"))
 	s.WriteString("\n\n")
 
-	// Error message
-	s.WriteString(ErrorStyle.Render(m.errorMsg))
+	// Status badge
+	s.WriteString(BadgeErrorStyle.Render(" ERROR "))
+	s.WriteString("\n\n")
+
+	// Error message in a highlighted box
+	errBox := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(ColorError).
+		Padding(0, 1).
+		Render(m.errorMsg)
+	s.WriteString(errBox)
 	s.WriteString("\n\n")
 
 	// Suggestions based on error type
 	if strings.Contains(m.errorMsg, "No Age identity") || strings.Contains(m.errorMsg, "no Age identity") {
-		s.WriteString(MutedStyle.Render("Tip: Run 'podx keygen -t age' to generate a key"))
+		s.WriteString(CardTitleStyle.Render("Suggestion:"))
+		s.WriteString("\n")
+		s.WriteString(MutedStyle.Render("  Run 'podx keygen -t age' to generate a key"))
 		s.WriteString("\n\n")
 	} else if strings.Contains(m.errorMsg, "No PODX project") {
-		s.WriteString(MutedStyle.Render("Tip: Run 'podx init' to initialize a project"))
+		s.WriteString(CardTitleStyle.Render("Suggestion:"))
+		s.WriteString("\n")
+		s.WriteString(MutedStyle.Render("  Run 'podx init' to initialize a project"))
 		s.WriteString("\n\n")
 	} else if strings.Contains(m.errorMsg, "No recipients") {
-		s.WriteString(MutedStyle.Render("Tip: Press [A] to add a recipient, or [M] to use your own key"))
+		s.WriteString(CardTitleStyle.Render("Suggestion:"))
+		s.WriteString("\n")
+		s.WriteString(MutedStyle.Render("  Press [A] to add a recipient"))
+		s.WriteString("\n")
+		s.WriteString(MutedStyle.Render("  Press [M] to use your own key"))
+		s.WriteString("\n\n")
+	} else if strings.Contains(m.errorMsg, "wrong password") || strings.Contains(m.errorMsg, "corrupted") {
+		s.WriteString(CardTitleStyle.Render("Suggestion:"))
+		s.WriteString("\n")
+		s.WriteString(MutedStyle.Render("  Check that you're using the correct password"))
+		s.WriteString("\n")
+		s.WriteString(MutedStyle.Render("  Verify the file is not corrupted"))
 		s.WriteString("\n\n")
 	}
 
-	s.WriteString(MutedStyle.Render("[Enter] Close  [Esc] Back"))
+	// Footer
+	s.WriteString(lipgloss.NewStyle().Foreground(ColorPrimary).Bold(true).Render("[Enter]"))
+	s.WriteString(MutedStyle.Render(" Close  "))
+	s.WriteString(lipgloss.NewStyle().Foreground(ColorMuted).Render("[Esc]"))
+	s.WriteString(MutedStyle.Render(" Back"))
 	return s.String()
 }

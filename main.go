@@ -908,9 +908,11 @@ func handleShamirCombine(args []string) {
 }
 
 func handleShamirPresets() {
-	fmt.Println("Available Shamir Secret Sharing presets:\n")
+	fmt.Println("Available Shamir Secret Sharing presets:")
+	fmt.Println()
 	for _, p := range crypto.ShamirPresets {
 		fmt.Printf("  %-8s  %s\n", p.Name, p.Description)
 	}
-	fmt.Println("\nUsage: podx shamir split -i <file> -p <preset>")
+	fmt.Println()
+	fmt.Println("Usage: podx shamir split -i <file> -p <preset>")
 }
