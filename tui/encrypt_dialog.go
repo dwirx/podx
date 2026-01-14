@@ -1312,66 +1312,110 @@ func (m EncryptDialogModel) renderComplete() string {
 	var s strings.Builder
 
 	// Success header with nice box
+	boxStyle := lipgloss.NewStyle().Foreground(ColorSuccess).Bold(true)
 	if m.isDecrypt {
-		s.WriteString(lipgloss.NewStyle().Foreground(ColorSuccess).Bold(true).Render("╔══════════════════════════════════╗"))
+		s.WriteString(boxStyle.Render("╔════════════════════════════════════════╗"))
 		s.WriteString("\n")
-		s.WriteString(lipgloss.NewStyle().Foreground(ColorSuccess).Bold(true).Render("║     DECRYPTION SUCCESSFUL        ║"))
+		s.WriteString(boxStyle.Render("║    🔓 DECRYPTION SUCCESSFUL            ║"))
 		s.WriteString("\n")
-		s.WriteString(lipgloss.NewStyle().Foreground(ColorSuccess).Bold(true).Render("╚══════════════════════════════════╝"))
+		s.WriteString(boxStyle.Render("╚════════════════════════════════════════╝"))
 	} else {
-		s.WriteString(lipgloss.NewStyle().Foreground(ColorSuccess).Bold(true).Render("╔══════════════════════════════════╗"))
+		s.WriteString(boxStyle.Render("╔════════════════════════════════════════╗"))
 		s.WriteString("\n")
-		s.WriteString(lipgloss.NewStyle().Foreground(ColorSuccess).Bold(true).Render("║     ENCRYPTION SUCCESSFUL        ║"))
+		s.WriteString(boxStyle.Render("║    🔐 ENCRYPTION SUCCESSFUL            ║"))
 		s.WriteString("\n")
-		s.WriteString(lipgloss.NewStyle().Foreground(ColorSuccess).Bold(true).Render("╚══════════════════════════════════╝"))
+		s.WriteString(boxStyle.Render("╚════════════════════════════════════════╝"))
 	}
 	s.WriteString("\n\n")
 
-	// Status badge
+	// Status badge with message
 	s.WriteString(BadgeSuccessStyle.Render(" SUCCESS "))
 	s.WriteString("  ")
-	s.WriteString(m.successMsg)
+	s.WriteString(lipgloss.NewStyle().Foreground(ColorSuccess).Render(m.successMsg))
 	s.WriteString("\n\n")
 
-	// Show encryption mode details
-	if !m.isDecrypt {
+	// Show encryption/decryption details
+	if m.isDecrypt {
+		s.WriteString(CardTitleStyle.Render("Details:"))
+		s.WriteString("\n")
+		s.WriteString(MutedStyle.Render("  Method: "))
+		if m.method == MethodPassword {
+			s.WriteString(lipgloss.NewStyle().Foreground(ColorSecondary).Render("Password-based"))
+		} else {
+			s.WriteString(lipgloss.NewStyle().Foreground(ColorSecondary).Render("Age Key"))
+		}
+		s.WriteString("\n")
+		s.WriteString(MutedStyle.Render("  Status: "))
+		s.WriteString(lipgloss.NewStyle().Foreground(ColorSuccess).Render("Original files restored"))
+		s.WriteString("\n")
+		s.WriteString(MutedStyle.Render("  Cleanup: "))
+		s.WriteString(lipgloss.NewStyle().Foreground(ColorSuccess).Render("Encrypted .podx files removed"))
+		s.WriteString("\n\n")
+	} else {
+		s.WriteString(CardTitleStyle.Render("Encryption Details:"))
+		s.WriteString("\n")
 		modeInfo := "AES-256-GCM"
 		if m.encryptMode == EncryptModeParanoid {
-			modeInfo = "XChaCha20-Poly1305 + Serpent (Cascade)"
+			modeInfo = "XChaCha20-Poly1305 + Serpent"
 		}
-		s.WriteString(MutedStyle.Render("Cipher: "))
+		s.WriteString(MutedStyle.Render("  Cipher:  "))
 		s.WriteString(lipgloss.NewStyle().Foreground(ColorSecondary).Render(modeInfo))
 		s.WriteString("\n")
-		s.WriteString(MutedStyle.Render("KDF:    "))
+		s.WriteString(MutedStyle.Render("  KDF:     "))
 		s.WriteString(lipgloss.NewStyle().Foreground(ColorSecondary).Render("Argon2id"))
+		s.WriteString("\n")
+		s.WriteString(MutedStyle.Render("  Mode:    "))
+		if m.encryptMode == EncryptModeParanoid {
+			s.WriteString(lipgloss.NewStyle().Foreground(ColorWarning).Bold(true).Render("PARANOID"))
+		} else {
+			s.WriteString(lipgloss.NewStyle().Foreground(ColorSuccess).Render("Normal"))
+		}
+		s.WriteString("\n")
+		s.WriteString(MutedStyle.Render("  Cleanup: "))
+		s.WriteString(lipgloss.NewStyle().Foreground(ColorSuccess).Render("Original files removed"))
 		s.WriteString("\n\n")
 	}
 
-	// Show files that were processed
+	// Show files that were processed with transformation arrows
 	if len(m.files) > 0 {
 		s.WriteString(CardTitleStyle.Render("Files Processed:"))
 		s.WriteString("\n")
 		for i, file := range m.files {
 			if i >= 5 {
-				s.WriteString(MutedStyle.Render(fmt.Sprintf("  ... and %d more", len(m.files)-5)))
+				s.WriteString(MutedStyle.Render(fmt.Sprintf("  ... and %d more files", len(m.files)-5)))
 				s.WriteString("\n")
 				break
 			}
 			if m.isDecrypt {
-				s.WriteString(SuccessStyle.Render("  [OK] "))
-				s.WriteString(fmt.Sprintf("📄 %s\n", strings.TrimSuffix(file.Name, ".podx")))
+				// .env.podx → .env
+				origName := strings.TrimSuffix(file.Name, ".podx")
+				s.WriteString(SuccessStyle.Render("  ✓ "))
+				s.WriteString(MutedStyle.Render(file.Name))
+				s.WriteString(lipgloss.NewStyle().Foreground(ColorPrimary).Bold(true).Render(" → "))
+				s.WriteString(lipgloss.NewStyle().Foreground(ColorSuccess).Bold(true).Render(origName))
+				s.WriteString("\n")
 			} else {
-				s.WriteString(SuccessStyle.Render("  [OK] "))
-				s.WriteString(fmt.Sprintf("🔒 %s.podx\n", file.Name))
+				// .env → .env.podx
+				s.WriteString(SuccessStyle.Render("  ✓ "))
+				s.WriteString(MutedStyle.Render(file.Name))
+				s.WriteString(lipgloss.NewStyle().Foreground(ColorPrimary).Bold(true).Render(" → "))
+				s.WriteString(lipgloss.NewStyle().Foreground(ColorSuccess).Bold(true).Render(file.Name+".podx"))
+				s.WriteString("\n")
 			}
 		}
 		s.WriteString("\n")
 	}
 
-	// Output location
-	s.WriteString(MutedStyle.Render("Output: "))
-	s.WriteString(m.outputPath)
-	s.WriteString("\n\n")
+	// Security reminder
+	if !m.isDecrypt {
+		s.WriteString(lipgloss.NewStyle().Foreground(ColorWarning).Render("💡 Tip: "))
+		s.WriteString(MutedStyle.Render("Commit the .podx files to git, not the originals"))
+		s.WriteString("\n\n")
+	} else {
+		s.WriteString(lipgloss.NewStyle().Foreground(ColorWarning).Render("⚠️  Warning: "))
+		s.WriteString(MutedStyle.Render("Do not commit decrypted files to git"))
+		s.WriteString("\n\n")
+	}
 
 	// Footer with highlighted Enter
 	s.WriteString(lipgloss.NewStyle().Foreground(ColorPrimary).Bold(true).Render("[Enter]"))
