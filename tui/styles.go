@@ -98,10 +98,8 @@ var (
 	// CardStyle for dashboard cards
 	CardStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
-			BorderForeground(ColorBorder).
-			Background(ColorBg).
-			Padding(1, 2).
-			MarginRight(1)
+			BorderForeground(ColorPrimary).
+			Padding(1, 2)
 
 	// CardTitleStyle for card headers
 	CardTitleStyle = lipgloss.NewStyle().
@@ -137,8 +135,7 @@ var (
 	// SectionStyle for content sections
 	SectionStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
-			BorderForeground(ColorBorder).
-			Background(ColorBg).
+			BorderForeground(ColorPrimary).
 			Padding(1, 2).
 			MarginBottom(1)
 

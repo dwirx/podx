@@ -276,8 +276,8 @@ func (m DashboardModel) renderDashboard() string {
 	default:
 		// Large terminal - comfortable card widths
 		cardWidth = (m.width - 10) / 2
-		if cardWidth > 60 {
-			cardWidth = 60
+		if cardWidth > 55 {
+			cardWidth = 55
 		}
 	}
 
@@ -299,17 +299,25 @@ func (m DashboardModel) renderDashboard() string {
 	if termSize == TerminalSmall {
 		// Stack vertically on small terminals
 		sections = append(sections, projectCard)
+		sections = append(sections, "")
 		sections = append(sections, securityCard)
 	} else {
 		// Side by side on medium/large terminals
-		topRow := lipgloss.JoinHorizontal(lipgloss.Top, projectCard, securityCard)
+		// Use lipgloss.JoinHorizontal with Top alignment
+		topRow := lipgloss.JoinHorizontal(lipgloss.Top, projectCard, "   ", securityCard)
 		sections = append(sections, topRow)
 	}
 
-	// Quick actions - always full width but constrained
-	actionsWidth := m.width - 6
-	if actionsWidth > 100 {
-		actionsWidth = 100
+	// Add spacing before quick actions
+	sections = append(sections, "")
+
+	// Quick actions - use same width as combined cards for consistency
+	actionsWidth := cardWidth*2 + 3 // Two cards + spacing between them
+	if actionsWidth > m.width-6 {
+		actionsWidth = m.width - 6
+	}
+	if actionsWidth < 50 {
+		actionsWidth = 50
 	}
 	actionsCard := m.renderQuickActionsWithWidth(actionsWidth)
 	sections = append(sections, actionsCard)
