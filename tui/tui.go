@@ -351,6 +351,13 @@ func (m Model) View() string {
 func (m Model) renderFullscreenDialog() string {
 	var dialog string
 
+	// Check Dashboard tab dialogs
+	if m.activeTab == TabDashboard {
+		if m.dashboard.keyManager.IsVisible() {
+			dialog = m.dashboard.keyManager.View()
+		}
+	}
+
 	// Check Commands tab dialogs
 	if m.activeTab == TabCommands {
 		if m.commands.formDialog != nil && m.commands.formDialog.IsVisible() {
@@ -590,6 +597,13 @@ func Run() error {
 // hasActiveDialog checks if any dialog is currently active
 // This is used to prevent global key bindings from intercepting keys meant for dialogs
 func (m Model) hasActiveDialog() bool {
+	// Check Dashboard tab dialogs
+	if m.activeTab == TabDashboard {
+		if m.dashboard.keyManager.IsVisible() {
+			return true
+		}
+	}
+
 	// Check Commands tab dialogs
 	if m.activeTab == TabCommands {
 		if m.commands.formDialog != nil && m.commands.formDialog.IsVisible() {
@@ -619,6 +633,13 @@ func (m Model) hasActiveDialog() bool {
 // hasFullscreenDialog checks if any fullscreen dialog overlay is currently active
 // Fullscreen dialogs should hide the header, tabs, and status bar
 func (m Model) hasFullscreenDialog() bool {
+	// Check Dashboard tab dialogs
+	if m.activeTab == TabDashboard {
+		if m.dashboard.keyManager.IsVisible() {
+			return true
+		}
+	}
+
 	// Check Commands tab dialogs
 	if m.activeTab == TabCommands {
 		if m.commands.formDialog != nil && m.commands.formDialog.IsVisible() {

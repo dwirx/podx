@@ -21,6 +21,8 @@ const (
 	ActionCheck
 	ActionHookInstall
 	ActionKeygen
+	ActionManageKeys
+	ActionInitProject
 )
 
 // DashboardModel represents the dashboard tab content
@@ -38,6 +40,7 @@ type DashboardModel struct {
 	keys        KeyMap
 	version     string
 	keyInfo     keygen.KeyInfo
+	keyManager  KeyManagerModel
 }
 
 // projectLoadedMsg is sent when project loading completes
@@ -75,11 +78,14 @@ func NewDashboardModel() DashboardModel {
 			"Run Check",
 			"Install Hook",
 			"Generate Key",
+			"Manage Keys",
+			"Init Project",
 		},
-		selected: 0,
-		cwd:      cwd,
-		keys:     DefaultKeyMap(),
-		version:  "1.0.0", // Default version, will be set by TUI
+		selected:   0,
+		cwd:        cwd,
+		keys:       DefaultKeyMap(),
+		version:    "1.0.0", // Default version, will be set by TUI
+		keyManager: NewKeyManagerModel(),
 	}
 }
 
@@ -161,6 +167,13 @@ func (m DashboardModel) executeAction(action int) tea.Cmd {
 				pubKey = pubKey[:30] + "..."
 			}
 			return actionResultMsg{action: action, success: true, message: fmt.Sprintf("Generated key: %s", pubKey)}
+
+		case ActionInitProject:
+			proj, err := project.Init(m.cwd)
+			if err != nil {
+				return actionResultMsg{action: action, success: false, message: err.Error()}
+			}
+			return actionResultMsg{action: action, success: true, message: fmt.Sprintf("Project initialized with %d recipient(s)", len(proj.Config.Recipients))}
 		}
 		return nil
 	}
@@ -168,6 +181,17 @@ func (m DashboardModel) executeAction(action int) tea.Cmd {
 
 // Update handles messages for the dashboard model
 func (m DashboardModel) Update(msg tea.Msg) (DashboardModel, tea.Cmd) {
+	// Handle key manager dialog first
+	if m.keyManager.IsVisible() {
+		var cmd tea.Cmd
+		m.keyManager, cmd = m.keyManager.Update(msg)
+		// If key manager was closed, reload project/key info
+		if !m.keyManager.IsVisible() {
+			m.keyInfo = keygen.GetAgeKeyInfo()
+		}
+		return m, cmd
+	}
+
 	switch msg := msg.(type) {
 	case projectLoadedMsg:
 		m.loading = false
@@ -209,6 +233,15 @@ func (m DashboardModel) Update(msg tea.Msg) (DashboardModel, tea.Cmd) {
 			return m, nil
 
 		case key.Matches(msg, m.keys.Enter), key.Matches(msg, m.keys.Right):
+			// Handle special actions that don't require async execution
+			if m.selected == ActionManageKeys {
+				// Open key manager dialog
+				return m, m.keyManager.Show(m.width, m.height)
+			}
+			if m.selected == ActionInitProject {
+				// Init project action - works even without existing project
+				return m, m.executeAction(m.selected)
+			}
 			if m.project != nil {
 				return m, m.executeAction(m.selected)
 			}
@@ -225,6 +258,11 @@ func (m DashboardModel) Update(msg tea.Msg) (DashboardModel, tea.Cmd) {
 
 // View renders the dashboard model
 func (m DashboardModel) View() string {
+	// Show key manager dialog if visible
+	if m.keyManager.IsVisible() {
+		return CenterDialog(m.keyManager.View(), m.width, m.height)
+	}
+
 	if m.loading {
 		return BoxStyle.Render(RenderSpinner(0) + " Loading...")
 	}
@@ -500,14 +538,16 @@ func (m DashboardModel) renderQuickActionsWithWidth(width int) string {
 	lines = append(lines, MutedStyle.Render("  Use j/k to navigate, Enter to execute"))
 	lines = append(lines, "")
 
-	actionIcons := []string{"E", "D", "C", "H", "K"}
-	actionEmojis := []string{"🔐", "🔓", "🛡️", "🪝", "🔑"}
+	actionIcons := []string{"E", "D", "C", "H", "K", "M", "I"}
+	actionEmojis := []string{"🔐", "🔓", "🛡️", "🪝", "🔑", "📋", "🚀"}
 	actionDescs := []string{
 		"Encrypt all secret files",
 		"Decrypt all secret files",
 		"Run security checks",
 		"Install pre-commit hook",
 		"Generate new Age key pair",
+		"Manage keys (import, select, delete)",
+		"Initialize new PODX project",
 	}
 
 	for i, action := range m.actions {

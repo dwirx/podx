@@ -238,7 +238,14 @@ podx
 
 - **Project Info** — Path, backend, recipients, secret patterns
 - **Security Status** — Encryption check, gitignore validation, hook status
-- **Quick Actions** — Encrypt All, Decrypt All, Run Check, Install Hook
+- **Quick Actions:**
+  - Encrypt All — Encrypt all secrets in project
+  - Decrypt All — Decrypt all `.podx` files
+  - Run Check — Run security checks
+  - Install Hook — Install pre-commit hook
+  - Generate Key — Generate new Age key pair
+  - Manage Keys — Open key manager dialog
+  - Init Project — Initialize new project
 - **Update Notification** — Shows when new version available
 
 ### Files Tab
@@ -336,6 +343,35 @@ podx keygen -t age
 
 # Generate GPG key pair
 podx keygen -t gpg -n "Your Name" -e "email@example.com"
+```
+
+#### Key Manager (TUI)
+
+Access the Key Manager from Dashboard → Manage Keys, or press `[G]` in Commands tab:
+
+| Action | Key | Description |
+|--------|-----|-------------|
+| Set Default | `Enter`/`Space` | Set selected key as default for encryption |
+| Generate | `G` | Generate new key with custom name |
+| Import | `I` | Import existing private key with name |
+| Rename | `R` | Rename selected key |
+| Delete | `D` | Delete selected key (with confirmation) |
+
+**Key Naming:**
+- Give keys meaningful names like "John Doe", "Production Server", "Backup Key"
+- Names help identify team members and key purposes
+- Auto-generated names are used if left empty
+
+**Key File Location:**
+```
+~/.config/podx/
+├── age-keys.txt           # Private keys with metadata
+│   # name: John Doe
+│   # created: 2024-01-15T10:30:00Z
+│   # public key: age1abc...
+│   AGE-SECRET-KEY-1...
+└── age-recipients/
+    └── default.txt        # Default public key
 ```
 
 ### Security Commands

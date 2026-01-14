@@ -67,3 +67,12 @@ func GenerateAgeKey() (string, string, error) {
 
 	return identity.String(), identity.Recipient().String(), nil
 }
+
+// DeriveAgePublicKey derives the public key from a private Age identity
+func DeriveAgePublicKey(privateKey string) (string, error) {
+	identity, err := age.ParseX25519Identity(strings.TrimSpace(privateKey))
+	if err != nil {
+		return "", fmt.Errorf("invalid private key: %w", err)
+	}
+	return identity.Recipient().String(), nil
+}

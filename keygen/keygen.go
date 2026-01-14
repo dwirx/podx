@@ -23,6 +23,7 @@ type KeygenResult struct {
 	PublicKey  string
 	PrivateKey string
 	Email      string
+	Name       string // Key name/label
 }
 
 // GetConfigDir returns the podx config directory
@@ -56,6 +57,11 @@ func EnsureConfigDir() (string, error) {
 
 // GenerateAge generates a new Age key pair and saves it
 func GenerateAge() (*KeygenResult, error) {
+	return GenerateAgeWithName("")
+}
+
+// GenerateAgeWithName generates a new Age key pair with a name/label and saves it
+func GenerateAgeWithName(name string) (*KeygenResult, error) {
 	privateKey, publicKey, err := crypto.GenerateAgeKey()
 	if err != nil {
 		return nil, err
@@ -68,12 +74,20 @@ func GenerateAge() (*KeygenResult, error) {
 
 	keyFile := filepath.Join(configDir, ageKeysFile)
 
+	// Set default name if empty
+	if name == "" {
+		// Count existing keys to generate default name
+		existingKeys, _ := ListAgeKeys()
+		name = fmt.Sprintf("Key #%d", len(existingKeys)+1)
+	}
+
 	// Append to keys file with standard age format:
+	// # name: <name>
 	// # created: <timestamp>
 	// # public key: <public_key>
 	// AGE-SECRET-KEY-...
-	content := fmt.Sprintf("# created: %s\n# public key: %s\n%s\n",
-		time.Now().Format(time.RFC3339), publicKey, privateKey)
+	content := fmt.Sprintf("# name: %s\n# created: %s\n# public key: %s\n%s\n",
+		name, time.Now().Format(time.RFC3339), publicKey, privateKey)
 
 	f, err := os.OpenFile(keyFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
@@ -96,6 +110,7 @@ func GenerateAge() (*KeygenResult, error) {
 		KeyFile:    keyFile,
 		PublicKey:  publicKey,
 		PrivateKey: privateKey,
+		Name:       name,
 	}, nil
 }
 
@@ -287,4 +302,257 @@ func GetAgeKeyInfo() KeyInfo {
 	}
 
 	return info
+}
+
+// AgeKeyEntry represents a single Age key entry with metadata
+type AgeKeyEntry struct {
+	Name       string // Key name/label (e.g., team member name)
+	CreatedAt  string // Creation timestamp
+	PublicKey  string // Public key (age1...)
+	PrivateKey string // Private key (AGE-SECRET-KEY-...)
+	Index      int    // Index in the key file
+}
+
+// ListAgeKeys returns all Age keys from the config file
+func ListAgeKeys() ([]AgeKeyEntry, error) {
+	configDir, err := GetConfigDir()
+	if err != nil {
+		return nil, err
+	}
+
+	keyFile := filepath.Join(configDir, ageKeysFile)
+	data, err := os.ReadFile(keyFile)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return []AgeKeyEntry{}, nil
+		}
+		return nil, err
+	}
+
+	lines := strings.Split(string(data), "\n")
+	var keys []AgeKeyEntry
+	var currentEntry AgeKeyEntry
+	keyIndex := 0
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+
+		// Parse name comment
+		if strings.HasPrefix(line, "# name:") {
+			currentEntry.Name = strings.TrimSpace(strings.TrimPrefix(line, "# name:"))
+			continue
+		}
+
+		// Parse created timestamp
+		if strings.HasPrefix(line, "# created:") {
+			currentEntry.CreatedAt = strings.TrimSpace(strings.TrimPrefix(line, "# created:"))
+			continue
+		}
+
+		// Parse public key comment
+		if strings.HasPrefix(line, "# public key:") {
+			currentEntry.PublicKey = strings.TrimSpace(strings.TrimPrefix(line, "# public key:"))
+			continue
+		}
+
+		// Parse private key
+		if strings.HasPrefix(line, "AGE-SECRET-KEY-") {
+			currentEntry.PrivateKey = line
+			currentEntry.Index = keyIndex
+			// Set default name if empty
+			if currentEntry.Name == "" {
+				currentEntry.Name = fmt.Sprintf("Key #%d", keyIndex+1)
+			}
+			keys = append(keys, currentEntry)
+			currentEntry = AgeKeyEntry{}
+			keyIndex++
+		}
+	}
+
+	return keys, nil
+}
+
+// ImportAgeKey imports a private key from a string and saves it
+func ImportAgeKey(privateKey string) (*KeygenResult, error) {
+	return ImportAgeKeyWithName(privateKey, "")
+}
+
+// ImportAgeKeyWithName imports a private key with a name/label and saves it
+func ImportAgeKeyWithName(privateKey, name string) (*KeygenResult, error) {
+	privateKey = strings.TrimSpace(privateKey)
+
+	// Validate private key format
+	if !strings.HasPrefix(privateKey, "AGE-SECRET-KEY-") {
+		return nil, fmt.Errorf("invalid Age private key (must start with 'AGE-SECRET-KEY-')")
+	}
+
+	// Derive public key from private key using age
+	publicKey, err := crypto.DeriveAgePublicKey(privateKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to derive public key: %w", err)
+	}
+
+	configDir, err := EnsureConfigDir()
+	if err != nil {
+		return nil, err
+	}
+
+	keyFile := filepath.Join(configDir, ageKeysFile)
+
+	// Check if key already exists
+	existingKeys, _ := ListAgeKeys()
+	for _, k := range existingKeys {
+		if k.PrivateKey == privateKey {
+			return nil, fmt.Errorf("this key already exists in your key store")
+		}
+	}
+
+	// Set default name if empty
+	if name == "" {
+		name = fmt.Sprintf("Imported Key #%d", len(existingKeys)+1)
+	}
+
+	// Append to keys file with standard age format
+	content := fmt.Sprintf("# name: %s\n# created: %s\n# public key: %s\n%s\n",
+		name, time.Now().Format(time.RFC3339), publicKey, privateKey)
+
+	f, err := os.OpenFile(keyFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open key file: %w", err)
+	}
+	defer f.Close()
+
+	if _, err := f.WriteString(content); err != nil {
+		return nil, fmt.Errorf("failed to write key: %w", err)
+	}
+
+	// Update default public key file
+	pubKeyFile := filepath.Join(configDir, ageRecipientsDir, "default.txt")
+	if err := os.WriteFile(pubKeyFile, []byte(publicKey+"\n"), 0644); err != nil {
+		return nil, fmt.Errorf("failed to save public key: %w", err)
+	}
+
+	return &KeygenResult{
+		Backend:    "age",
+		KeyFile:    keyFile,
+		PublicKey:  publicKey,
+		PrivateKey: privateKey,
+		Name:       name,
+	}, nil
+}
+
+// SetDefaultKey sets a specific key as the default for encryption/decryption
+func SetDefaultKey(index int) error {
+	keys, err := ListAgeKeys()
+	if err != nil {
+		return err
+	}
+
+	if index < 0 || index >= len(keys) {
+		return fmt.Errorf("invalid key index: %d", index)
+	}
+
+	selectedKey := keys[index]
+
+	configDir, err := GetConfigDir()
+	if err != nil {
+		return err
+	}
+
+	// Update default public key file
+	pubKeyFile := filepath.Join(configDir, ageRecipientsDir, "default.txt")
+	if err := os.WriteFile(pubKeyFile, []byte(selectedKey.PublicKey+"\n"), 0644); err != nil {
+		return fmt.Errorf("failed to set default key: %w", err)
+	}
+
+	return nil
+}
+
+// DeleteKey removes a key from the key store by index
+func DeleteKey(index int) error {
+	keys, err := ListAgeKeys()
+	if err != nil {
+		return err
+	}
+
+	if index < 0 || index >= len(keys) {
+		return fmt.Errorf("invalid key index: %d", index)
+	}
+
+	if len(keys) == 1 {
+		return fmt.Errorf("cannot delete the only key - generate a new one first")
+	}
+
+	// Rebuild the key file without the deleted key
+	configDir, err := GetConfigDir()
+	if err != nil {
+		return err
+	}
+
+	keyFile := filepath.Join(configDir, ageKeysFile)
+
+	var content strings.Builder
+	for i, k := range keys {
+		if i != index {
+			content.WriteString(fmt.Sprintf("# name: %s\n# created: %s\n# public key: %s\n%s\n",
+				k.Name, k.CreatedAt, k.PublicKey, k.PrivateKey))
+		}
+	}
+
+	if err := os.WriteFile(keyFile, []byte(content.String()), 0600); err != nil {
+		return fmt.Errorf("failed to update key file: %w", err)
+	}
+
+	// If we deleted the default key, set the first remaining key as default
+	currentDefault, _ := LoadAgeRecipient()
+	deletedKey := keys[index]
+	if currentDefault == deletedKey.PublicKey && len(keys) > 1 {
+		newDefaultIndex := 0
+		if index == 0 {
+			newDefaultIndex = 1
+		}
+		_ = SetDefaultKey(newDefaultIndex)
+	}
+
+	return nil
+}
+
+// RenameKey renames a key in the key store
+func RenameKey(index int, newName string) error {
+	keys, err := ListAgeKeys()
+	if err != nil {
+		return err
+	}
+
+	if index < 0 || index >= len(keys) {
+		return fmt.Errorf("invalid key index: %d", index)
+	}
+
+	newName = strings.TrimSpace(newName)
+	if newName == "" {
+		return fmt.Errorf("name cannot be empty")
+	}
+
+	// Update the name
+	keys[index].Name = newName
+
+	// Rebuild the key file with updated name
+	configDir, err := GetConfigDir()
+	if err != nil {
+		return err
+	}
+
+	keyFile := filepath.Join(configDir, ageKeysFile)
+
+	var content strings.Builder
+	for _, k := range keys {
+		content.WriteString(fmt.Sprintf("# name: %s\n# created: %s\n# public key: %s\n%s\n",
+			k.Name, k.CreatedAt, k.PublicKey, k.PrivateKey))
+	}
+
+	if err := os.WriteFile(keyFile, []byte(content.String()), 0600); err != nil {
+		return fmt.Errorf("failed to update key file: %w", err)
+	}
+
+	return nil
 }
