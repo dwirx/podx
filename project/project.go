@@ -327,6 +327,13 @@ func (p *Project) DecryptAll() (int, error) {
 				fmt.Printf("✓ Decrypted: %s%s → %s\n", relPath, EncryptedExt, relPath)
 			}
 
+			// Delete encrypted file after successful decryption
+			if err := os.Remove(match); err != nil {
+				fmt.Printf("⚠️  Could not delete encrypted file: %s\n", err)
+			} else {
+				fmt.Printf("🗑️  Deleted encrypted: %s%s\n", relPath, EncryptedExt)
+			}
+
 			count++
 		}
 	}
