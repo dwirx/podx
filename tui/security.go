@@ -161,32 +161,48 @@ func (m SecurityModel) Update(msg tea.Msg) (SecurityModel, tea.Cmd) {
 // View renders the security model
 func (m SecurityModel) View() string {
 	if m.loading {
-		return BoxStyle.Render("Running security check...")
+		return CardStyle.Copy().Width(m.width - 6).Render(RenderSpinner(0) + " Running security check...")
 	}
 
 	var sections []string
 
-	// Title
-	sections = append(sections, m.renderTitle())
+	// Get terminal size for responsive layout
+	termSize := GetTerminalSize(m.width)
+	cardWidth := m.width - 6
+	if cardWidth > 100 {
+		cardWidth = 100
+	}
+	if cardWidth < 50 {
+		cardWidth = 50
+	}
 
-	// Check results
-	sections = append(sections, m.renderResults())
+	// Title card
+	titleContent := TitleStyle.Render("Security Check")
+	sections = append(sections, CardStyle.Copy().Width(cardWidth).Render(titleContent))
+
+	// Check results card
+	sections = append(sections, "")
+	sections = append(sections, m.renderResultsCard(cardWidth))
 
 	// Detailed findings (if any issues)
 	if m.result != nil && !m.result.Passed {
-		sections = append(sections, m.renderFindings())
+		sections = append(sections, "")
+		sections = append(sections, m.renderFindingsCard(cardWidth, termSize))
 	}
 
-	// Overall result
-	sections = append(sections, m.renderOverallResult())
+	// Overall result card
+	sections = append(sections, "")
+	sections = append(sections, m.renderOverallResultCard(cardWidth))
 
 	// Status message (if any)
 	if m.message != "" {
+		sections = append(sections, "")
 		sections = append(sections, m.message)
 	}
 
 	// Action bar
-	sections = append(sections, m.renderActionBar())
+	sections = append(sections, "")
+	sections = append(sections, m.renderActionBarCard(cardWidth))
 
 	return lipgloss.JoinVertical(lipgloss.Left, sections...)
 }
@@ -196,58 +212,62 @@ func (m SecurityModel) renderTitle() string {
 	return BoxStyle.Render(TitleStyle.Render("Security Check"))
 }
 
-// renderResults renders the security check results summary
-func (m SecurityModel) renderResults() string {
+// renderResultsCard renders the security check results summary with card style
+func (m SecurityModel) renderResultsCard(width int) string {
 	var lines []string
 
+	lines = append(lines, CardTitleStyle.Render("Check Results"))
+	lines = append(lines, "")
+
 	if m.result == nil {
-		lines = append(lines, MutedStyle.Render("No results available"))
-		return BoxStyle.Render(strings.Join(lines, "\n"))
+		lines = append(lines, MutedStyle.Render("  No results available"))
+		return CardStyle.Copy().Width(width).Render(strings.Join(lines, "\n"))
 	}
 
 	// Encryption Status
 	if len(m.result.EncryptionIssues) == 0 {
-		lines = append(lines, SuccessStyle.Render("  Encryption Status    All secrets encrypted"))
+		lines = append(lines, SuccessStyle.Render("  [OK] Encryption       All secrets encrypted"))
 	} else {
-		lines = append(lines, ErrorStyle.Render("  Encryption Status    Issues found"))
+		lines = append(lines, ErrorStyle.Render("  [!!] Encryption       Issues found"))
 	}
 
 	// Gitignore
 	if len(m.result.GitignoreIssues) == 0 {
-		lines = append(lines, SuccessStyle.Render("  Gitignore            Properly configured"))
+		lines = append(lines, SuccessStyle.Render("  [OK] Gitignore        Properly configured"))
 	} else {
-		lines = append(lines, WarningStyle.Render("  Gitignore            Missing entries"))
+		lines = append(lines, WarningStyle.Render("  [!!] Gitignore        Missing entries"))
 	}
 
 	// Pattern Scan
 	if len(m.result.SecretFindings) == 0 {
-		lines = append(lines, SuccessStyle.Render("  Pattern Scan         No secrets detected"))
+		lines = append(lines, SuccessStyle.Render("  [OK] Pattern Scan     No secrets detected"))
 	} else {
-		lines = append(lines, ErrorStyle.Render(fmt.Sprintf("  Pattern Scan         %d files with secrets", len(m.result.SecretFindings))))
+		lines = append(lines, ErrorStyle.Render(fmt.Sprintf("  [!!] Pattern Scan     %d files with secrets", len(m.result.SecretFindings))))
 	}
 
-	return BoxStyle.Render(strings.Join(lines, "\n"))
+	return CardStyle.Copy().Width(width).Render(strings.Join(lines, "\n"))
 }
 
-// renderFindings renders detailed findings
-func (m SecurityModel) renderFindings() string {
+// renderFindingsCard renders detailed findings with card style
+func (m SecurityModel) renderFindingsCard(width int, termSize TerminalSize) string {
 	var lines []string
 
-	lines = append(lines, TitleStyle.Render("Detailed Findings"))
+	lines = append(lines, CardTitleStyle.Render("Detailed Findings"))
 	lines = append(lines, "")
 
 	// Encryption issues
 	if len(m.result.EncryptionIssues) > 0 {
-		lines = append(lines, ErrorStyle.Render("Encryption Issues:"))
+		lines = append(lines, ErrorStyle.Render("  Encryption Issues:"))
 		for _, issue := range m.result.EncryptionIssues {
-			lines = append(lines, fmt.Sprintf("    %s", issue))
+			issueText := TruncateText(issue, width-10)
+			lines = append(lines, fmt.Sprintf("    %s", issueText))
 		}
 		lines = append(lines, "")
 	}
 
 	// Gitignore issues
 	if len(m.result.GitignoreIssues) > 0 {
-		lines = append(lines, WarningStyle.Render("Gitignore Issues:"))
+		lines = append(lines, WarningStyle.Render("  Gitignore Issues:"))
 		for _, pattern := range m.result.GitignoreIssues {
 			lines = append(lines, fmt.Sprintf("    Missing: %s", pattern))
 		}
@@ -256,51 +276,70 @@ func (m SecurityModel) renderFindings() string {
 
 	// Secret findings
 	if len(m.result.SecretFindings) > 0 {
-		lines = append(lines, ErrorStyle.Render("Secret Patterns Found:"))
+		lines = append(lines, ErrorStyle.Render("  Secret Patterns Found:"))
+		maxFindings := 5
+		if termSize == TerminalLarge {
+			maxFindings = 10
+		}
+		count := 0
 		for _, file := range m.result.SecretFindings {
+			if count >= maxFindings {
+				remaining := len(m.result.SecretFindings) - count
+				lines = append(lines, MutedStyle.Render(fmt.Sprintf("    ... and %d more files", remaining)))
+				break
+			}
 			for _, match := range file.Matches {
-				lines = append(lines, fmt.Sprintf("    %s:%d  %s", file.Path, match.Line, match.Content))
+				content := TruncateText(match.Content, width-20)
+				lines = append(lines, fmt.Sprintf("    %s:%d  %s", file.Path, match.Line, content))
+				count++
+				if count >= maxFindings {
+					break
+				}
 			}
 		}
 	}
 
-	return BoxStyle.Render(strings.Join(lines, "\n"))
+	return CardStyle.Copy().Width(width).Render(strings.Join(lines, "\n"))
 }
 
-// renderOverallResult renders the overall pass/fail result
-func (m SecurityModel) renderOverallResult() string {
-	separator := strings.Repeat("-", 40)
-
-	var resultLine string
+// renderOverallResultCard renders the overall pass/fail result with card style
+func (m SecurityModel) renderOverallResultCard(width int) string {
+	var content string
 	if m.result != nil && m.result.Passed {
-		resultLine = SuccessStyle.Render("Result: PASSED")
+		content = "  " + BadgeSuccessStyle.Render(" PASSED ") + "  " + SuccessStyle.Render("All security checks passed")
 	} else {
-		resultLine = ErrorStyle.Render("Result: FAILED")
+		content = "  " + BadgeErrorStyle.Render(" FAILED ") + "  " + ErrorStyle.Render("Some security checks failed")
 	}
 
-	return BoxStyle.Render(fmt.Sprintf("%s\n%s", separator, resultLine))
+	return CardStyle.Copy().Width(width).Render(content)
 }
 
-// renderActionBar renders the horizontal action bar
-func (m SecurityModel) renderActionBar() string {
-	var actionButtons []string
+// renderActionBarCard renders the horizontal action bar with card style
+func (m SecurityModel) renderActionBarCard(width int) string {
+	var lines []string
 
+	lines = append(lines, CardTitleStyle.Render("Actions"))
+	lines = append(lines, "")
+
+	var actionButtons []string
 	shortcuts := []string{"R", "F", "I"}
 
 	for i, action := range m.actions {
 		buttonText := fmt.Sprintf("[%s] %s", shortcuts[i], action)
 
 		if i == m.selected {
-			actionButtons = append(actionButtons, SelectedStyle.Render(buttonText))
+			actionButtons = append(actionButtons, SelectedStyle.Render(" "+buttonText+" "))
 		} else {
 			actionButtons = append(actionButtons, MutedStyle.Render(buttonText))
 		}
 	}
 
-	actionBar := strings.Join(actionButtons, "  ")
-	helpText := MutedStyle.Render("h/l: select action | Enter: execute | r/f/i: quick action")
+	actionBar := strings.Join(actionButtons, "   ")
+	lines = append(lines, "  "+actionBar)
+	lines = append(lines, "")
+	lines = append(lines, MutedStyle.Render("  h/l: select | Enter: execute | r/f/i: quick action"))
 
-	return BoxStyle.Render(fmt.Sprintf("%s\n\n%s", actionBar, helpText))
+	return CardStyle.Copy().Width(width).Render(strings.Join(lines, "\n"))
 }
 
 // SetSize updates the model dimensions

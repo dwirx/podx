@@ -715,11 +715,11 @@ func (m FilesModel) decryptSelected() tea.Cmd {
 // View renders the files model
 func (m FilesModel) View() string {
 	if m.loading {
-		return BoxStyle.Render("Loading files...")
+		return CardStyle.Copy().Width(m.width - 6).Render(RenderSpinner(0) + " Loading files...")
 	}
 
 	if m.err != nil {
-		return BoxStyle.Render(ErrorStyle.Render(fmt.Sprintf("Error: %v", m.err)))
+		return CardStyle.Copy().Width(m.width - 6).Render(ErrorStyle.Render(fmt.Sprintf("Error: %v", m.err)))
 	}
 
 	// Overlay dialog if visible - use CenterDialog for proper fullscreen overlay
@@ -904,7 +904,7 @@ func (m FilesModel) renderFileBrowser() string {
 		mainContent = filePanel
 	}
 
-	return BoxStyle.Render(mainContent)
+	return CardStyle.Copy().Width(totalWidth + 4).Render(mainContent)
 }
 
 // renderFileListPanel renders the file list panel

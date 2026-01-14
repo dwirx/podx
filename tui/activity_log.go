@@ -165,35 +165,64 @@ func (m ActivityLogModel) Update(msg tea.Msg) (ActivityLogModel, tea.Cmd) {
 
 // View renders the activity log
 func (m ActivityLogModel) View() string {
-	return m.RenderCompact(m.height - 4)
-}
-
-// RenderCompact renders a compact view of the activity log
-func (m ActivityLogModel) RenderCompact(maxLines int) string {
-	if maxLines < 1 {
-		maxLines = 5
+	cardWidth := m.width - 6
+	if cardWidth > 100 {
+		cardWidth = 100
+	}
+	if cardWidth < 50 {
+		cardWidth = 50
 	}
 
-	entries := GetActivityLog().GetEntries(maxLines)
-	if len(entries) == 0 {
-		return MutedStyle.Render("  No activity yet")
+	var sections []string
+
+	// Title card
+	titleContent := TitleStyle.Render("Activity Log")
+	sections = append(sections, CardStyle.Copy().Width(cardWidth).Render(titleContent))
+
+	// Log entries card
+	sections = append(sections, "")
+	logContent := m.RenderLogCard(m.height-8, cardWidth)
+	sections = append(sections, logContent)
+
+	// Help card
+	sections = append(sections, "")
+	helpContent := MutedStyle.Render("  j/k: scroll | g: top | G: bottom")
+	sections = append(sections, CardStyle.Copy().Width(cardWidth).Render(helpContent))
+
+	return lipgloss.JoinVertical(lipgloss.Left, sections...)
+}
+
+// RenderLogCard renders the log entries in a card
+func (m ActivityLogModel) RenderLogCard(maxLines int, width int) string {
+	if maxLines < 1 {
+		maxLines = 10
 	}
 
 	var lines []string
-	for _, entry := range entries {
-		line := m.formatEntry(entry)
-		lines = append(lines, line)
+	lines = append(lines, CardTitleStyle.Render("Recent Activity"))
+	lines = append(lines, "")
+
+	entries := GetActivityLog().GetEntries(maxLines)
+	if len(entries) == 0 {
+		lines = append(lines, MutedStyle.Render("  No activity yet"))
+		lines = append(lines, "")
+		lines = append(lines, MutedStyle.Render("  Activity will appear here as you use PODX"))
+	} else {
+		for _, entry := range entries {
+			line := m.formatEntryWithWidth(entry, width-8)
+			lines = append(lines, line)
+		}
 	}
 
-	return strings.Join(lines, "\n")
+	return CardStyle.Copy().Width(width).Render(strings.Join(lines, "\n"))
 }
 
-// formatEntry formats a single log entry
-func (m ActivityLogModel) formatEntry(entry LogEntry) string {
+// formatEntryWithWidth formats a log entry with width constraint
+func (m ActivityLogModel) formatEntryWithWidth(entry LogEntry, maxMsgWidth int) string {
 	// Time format: HH:MM:SS
 	timeStr := entry.Timestamp.Format("15:04:05")
 
-	// Level indicator
+	// Level indicator and style
 	var levelIndicator string
 	var msgStyle lipgloss.Style
 
@@ -212,10 +241,16 @@ func (m ActivityLogModel) formatEntry(entry LogEntry) string {
 		msgStyle = LogEntryStyle
 	}
 
+	// Truncate message if needed
+	msg := entry.Message
+	if len(msg) > maxMsgWidth-15 {
+		msg = msg[:maxMsgWidth-18] + "..."
+	}
+
 	return fmt.Sprintf("  %s %s %s",
 		LogTimestampStyle.Render(timeStr),
 		msgStyle.Render(levelIndicator),
-		msgStyle.Render(entry.Message))
+		msgStyle.Render(msg))
 }
 
 // SetSize updates dimensions

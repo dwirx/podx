@@ -454,23 +454,7 @@ func (m Model) renderContent() string {
 
 // renderLogsTab renders the activity logs tab
 func (m Model) renderLogsTab() string {
-	var content strings.Builder
-
-	// Title
-	content.WriteString(TitleStyle.Render("[ ACTIVITY LOG ]"))
-	content.WriteString("\n\n")
-
-	// Log entries
-	content.WriteString(m.logs.RenderCompact(m.height - 10))
-
-	content.WriteString("\n\n")
-	content.WriteString(RenderHorizontalDivider(50))
-	content.WriteString("\n\n")
-
-	// Help
-	content.WriteString(MutedStyle.Render("  [j/k] Navigate  [g] Go to top  [G] Go to bottom"))
-
-	return BoxStyle.Render(content.String())
+	return m.logs.View()
 }
 
 // renderSizeWarning renders a warning for terminals that are too small
