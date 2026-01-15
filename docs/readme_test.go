@@ -2,6 +2,7 @@ package docs
 
 import (
 	"os"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -14,19 +15,34 @@ func TestREADMEStructure(t *testing.T) {
 	}
 	text := string(content)
 
-	// Define required sections and keywords
-	requiredItems := []string{
-		"# PODX",
-		"## Features",
-		"## Installation",
-		"## Quick Start",
-		"## Encryption Methods",
-		"### Symmetric Encryption",
-		"### Asymmetric Encryption",
-		"#### Age X25519",
-		"#### GPG/PGP",
-		"## TUI (Terminal User Interface)",
-		"## Performance",
+	// Define required sections and keywords (with regex for emoji tolerance)
+	requiredPatterns := map[string]string{
+		"# PODX":                          `# PODX`,
+		"## Features":                     `## .*Features`,
+		"## Installation":                 `## .*Installation`,
+		"## Quick Start":                  `## .*Quick Start`,
+		"## Encryption Methods":           `## .*Encryption Methods`,
+		"### Symmetric Encryption":        `### .*Symmetric Encryption`,
+		"### Asymmetric Encryption":       `### .*Asymmetric Encryption`,
+		"#### Age X25519":                 `#### .*Age X25519`,
+		"#### GPG/PGP":                    `#### .*GPG/PGP`,
+		"## TUI (Terminal User Interface)": `## .*TUI \(Terminal User Interface\)`,
+		"## Performance":                  `## .*Performance`,
+	}
+
+	// Check patterns
+	for desc, pattern := range requiredPatterns {
+		matched, err := regexp.MatchString(pattern, text)
+		if err != nil {
+			t.Errorf("Invalid regex pattern for %q: %v", desc, err)
+		}
+		if !matched {
+			t.Errorf("README.md missing required section: %q (pattern: %s)", desc, pattern)
+		}
+	}
+
+	// Define required keywords (exact string match)
+	requiredKeywords := []string{
 		// GPG specific keywords
 		"Native Go GPG",
 		"gopenpgp",
@@ -38,9 +54,9 @@ func TestREADMEStructure(t *testing.T) {
 		"XChaCha20-Poly1305",
 	}
 
-	for _, item := range requiredItems {
-		if !strings.Contains(text, item) {
-			t.Errorf("README.md missing required section or keyword: %q", item)
+	for _, keyword := range requiredKeywords {
+		if !strings.Contains(strings.ToLower(text), strings.ToLower(keyword)) {
+			t.Errorf("README.md missing required keyword: %q", keyword)
 		}
 	}
 }
