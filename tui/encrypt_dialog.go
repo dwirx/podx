@@ -20,6 +20,7 @@ type EncryptMethod int
 const (
 	MethodPassword EncryptMethod = iota
 	MethodAgeKey
+	MethodGPG
 )
 
 // EncryptModeOption represents the encryption mode (normal/paranoid)
