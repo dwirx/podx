@@ -51,6 +51,8 @@ type EncryptDialogModel struct {
 	visible      bool
 	state        DialogState
 	method       EncryptMethod
+	methods      []string          // method names for display
+	methodStep   bool              // true when selecting method
 	encryptMode  EncryptModeOption // normal or paranoid
 	selectedIdx  int
 	files        []FileInfo
@@ -121,6 +123,8 @@ func NewEncryptDialogModel() EncryptDialogModel {
 		visible:       false,
 		state:         StateSelectMethod,
 		method:        MethodPassword,
+		methods:       []string{"Password", "Age Key", "GPG Key"},
+		methodStep:    true,
 		password:      password,
 		confirmPass:   confirmPass,
 		recipientName: recipientName,
