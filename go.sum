@@ -2,6 +2,8 @@ c2sp.org/CCTV/age v0.0.0-20240306222714-3ec4d716e805 h1:u2qwJeEvnypw+OCPUHmoZE3I
 c2sp.org/CCTV/age v0.0.0-20240306222714-3ec4d716e805/go.mod h1:FomMrUJ2Lxt5jCLmZkG3FHa72zUprnhd3v/Z18Snm4w=
 filippo.io/age v1.2.1 h1:X0TZjehAZylOIj4DubWYU1vWQxv9bJpo+Uu2/LGhi1o=
 filippo.io/age v1.2.1/go.mod h1:JL9ew2lTN+Pyft4RiNGguFfOpewKwSHm5ayKD/A4004=
+github.com/ProtonMail/gopenpgp/v2 v2.9.0 h1:ruLzBmwe4dR1hdnrsEJ/S7psSBmV15gFttFUPP/+/kE=
+github.com/ProtonMail/gopenpgp/v2 v2.9.0/go.mod h1:IldDyh9Hv1ZCCYatTuuEt1XZJ0OPjxLpTarDfglih7s=
 github.com/aead/serpent v0.0.0-20160714141033-fba169763ea6 h1:5L8Mj9Co9sJVgW3TpYk2gxGJnDjsYuboNTcRmbtGKGs=
 github.com/aead/serpent v0.0.0-20160714141033-fba169763ea6/go.mod h1:3HgLJ9d18kXMLQlJvIY3+FszZYMxCz8WfE2MQ7hDY0w=
 github.com/atotto/clipboard v0.1.4 h1:EH0zSVneZPSuFR11BlR9YppQTVDbh5+16AmcJi4g1z4=
