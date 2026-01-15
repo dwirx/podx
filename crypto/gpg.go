@@ -204,3 +204,51 @@ func GPGDecryptNative(ciphertext []byte, privateKeyArmored string, passphrase st
 
 	return plainMessage.GetBinary(), nil
 }
+
+// GPGEncryptMultipleNative encrypts plaintext for multiple recipients using native Go PGP implementation
+// publicKeysArmored should be a slice of armored PGP public keys
+func GPGEncryptMultipleNative(plaintext []byte, publicKeysArmored []string) ([]byte, error) {
+	if len(publicKeysArmored) == 0 {
+		return nil, fmt.Errorf("no public keys provided")
+	}
+
+	// Parse all public keys and add to keyring
+	var keyRing *crypto.KeyRing
+	for i, pubKeyArmored := range publicKeysArmored {
+		publicKeyObj, err := crypto.NewKeyFromArmored(pubKeyArmored)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse public key %d: %w", i, err)
+		}
+
+		if keyRing == nil {
+			// Create keyring with first key
+			keyRing, err = crypto.NewKeyRing(publicKeyObj)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create keyring: %w", err)
+			}
+		} else {
+			// Add subsequent keys to the keyring
+			err = keyRing.AddKey(publicKeyObj)
+			if err != nil {
+				return nil, fmt.Errorf("failed to add public key %d to keyring: %w", i, err)
+			}
+		}
+	}
+
+	// Create a plaintext message from bytes
+	message := crypto.NewPlainMessage(plaintext)
+
+	// Encrypt the message for all recipients
+	pgpMessage, err := keyRing.Encrypt(message, nil)
+	if err != nil {
+		return nil, fmt.Errorf("encryption failed: %w", err)
+	}
+
+	// Get armored ciphertext
+	armoredMessage, err := pgpMessage.GetArmored()
+	if err != nil {
+		return nil, fmt.Errorf("failed to armor message: %w", err)
+	}
+
+	return []byte(armoredMessage), nil
+}

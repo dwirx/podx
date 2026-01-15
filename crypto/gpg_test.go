@@ -388,3 +388,65 @@ func TestGPGEncryptDecryptNative(t *testing.T) {
 		})
 	}
 }
+
+func TestGPGEncryptMultipleRecipientsNative(t *testing.T) {
+	// Generate two test keys
+	_, privateKey1, publicKey1, err := GenerateGPGKeyNative("User 1", "user1@podx.local", "")
+	if err != nil {
+		t.Fatalf("key 1 generation failed: %v", err)
+	}
+
+	_, privateKey2, publicKey2, err := GenerateGPGKeyNative("User 2", "user2@podx.local", "")
+	if err != nil {
+		t.Fatalf("key 2 generation failed: %v", err)
+	}
+
+	tests := []struct {
+		name      string
+		plaintext []byte
+	}{
+		{"short", []byte("multi-recipient test")},
+		{"medium", []byte("the quick brown fox jumps over the lazy dog")},
+		{"binary", []byte{0x00, 0x01, 0x02, 0xff, 0xfe, 0xfd}},
+		{"unicode", []byte("Hello 世界 🌍")},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Encrypt for both recipients
+			publicKeys := []string{publicKey1, publicKey2}
+			ciphertext, err := GPGEncryptMultipleNative(tt.plaintext, publicKeys)
+			if err != nil {
+				t.Fatalf("multi-recipient encrypt error: %v", err)
+			}
+
+			if len(ciphertext) == 0 {
+				t.Fatal("ciphertext is empty")
+			}
+
+			// Verify ASCII armor format
+			if !bytes.Contains(ciphertext, []byte("-----BEGIN PGP MESSAGE-----")) {
+				t.Error("ciphertext not in ASCII armor format")
+			}
+
+			// Both recipients should be able to decrypt
+			decrypted1, err := GPGDecryptNative(ciphertext, privateKey1, "")
+			if err != nil {
+				t.Fatalf("recipient 1 decrypt error: %v", err)
+			}
+
+			if !bytes.Equal(decrypted1, tt.plaintext) {
+				t.Error("recipient 1: decrypted data mismatch")
+			}
+
+			decrypted2, err := GPGDecryptNative(ciphertext, privateKey2, "")
+			if err != nil {
+				t.Fatalf("recipient 2 decrypt error: %v", err)
+			}
+
+			if !bytes.Equal(decrypted2, tt.plaintext) {
+				t.Error("recipient 2: decrypted data mismatch")
+			}
+		})
+	}
+}
