@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"os/exec"
+
+	"github.com/ProtonMail/gopenpgp/v2/crypto"
 )
 
 // GPGEncrypt mengenkripsi plaintext dengan GPG menggunakan recipient ID (email atau key ID)
@@ -77,4 +79,43 @@ Expire-Date: 0
 func CheckGPGInstalled() bool {
 	_, err := exec.LookPath("gpg")
 	return err == nil
+}
+
+// GenerateGPGKeyNative generates a new GPG key pair using native Go implementation
+// Returns: keyID (email), privateKey (armored), publicKey (armored), error
+func GenerateGPGKeyNative(name, email, passphrase string) (string, string, string, error) {
+	rsaBits := 4096
+
+	// Generate key using gopenpgp - USE CORRECT API from research!
+	key, err := crypto.GenerateKey(name, email, "rsa", rsaBits)
+	if err != nil {
+		return "", "", "", fmt.Errorf("failed to generate PGP key: %w", err)
+	}
+
+	// Get armored private key
+	privateKeyArmored, err := key.Armor()
+	if err != nil {
+		return "", "", "", fmt.Errorf("failed to armor private key: %w", err)
+	}
+
+	// Get armored public key
+	publicKeyArmored, err := key.GetArmoredPublicKey()
+	if err != nil {
+		return "", "", "", fmt.Errorf("failed to get public key: %w", err)
+	}
+
+	// If passphrase provided, lock the key
+	if passphrase != "" {
+		locked, err := key.Lock([]byte(passphrase))
+		if err != nil {
+			return "", "", "", fmt.Errorf("failed to lock key with passphrase: %w", err)
+		}
+		privateKeyArmored, err = locked.Armor()
+		if err != nil {
+			return "", "", "", fmt.Errorf("failed to armor locked key: %w", err)
+		}
+	}
+
+	// Use email as key ID for consistency
+	return email, privateKeyArmored, publicKeyArmored, nil
 }
