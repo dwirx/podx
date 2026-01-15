@@ -301,3 +301,40 @@ func TestGenerateGPGKeyNative(t *testing.T) {
 		t.Error("public key not in armored format")
 	}
 }
+
+func TestGPGEncryptNative(t *testing.T) {
+	// Generate test key
+	_, _, publicKey, err := GenerateGPGKeyNative("Test User", "test@podx.local", "")
+	if err != nil {
+		t.Fatalf("key generation failed: %v", err)
+	}
+
+	tests := []struct {
+		name      string
+		plaintext []byte
+	}{
+		{"empty", []byte{}},
+		{"short", []byte("hello native gpg")},
+		{"medium", []byte("the quick brown fox jumps over the lazy dog")},
+		{"binary", []byte{0x00, 0x01, 0x02, 0xff, 0xfe, 0xfd}},
+		{"unicode", []byte("Hello 世界 🌍")},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ciphertext, err := GPGEncryptNative(tt.plaintext, publicKey)
+			if err != nil {
+				t.Fatalf("encrypt error: %v", err)
+			}
+
+			if len(ciphertext) == 0 {
+				t.Fatal("ciphertext is empty")
+			}
+
+			// Verify ASCII armor format
+			if !bytes.Contains(ciphertext, []byte("-----BEGIN PGP MESSAGE-----")) {
+				t.Error("ciphertext not in ASCII armor format")
+			}
+		})
+	}
+}

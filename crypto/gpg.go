@@ -6,6 +6,7 @@ import (
 	"os/exec"
 
 	"github.com/ProtonMail/gopenpgp/v2/crypto"
+	"github.com/ProtonMail/gopenpgp/v2/helper"
 )
 
 // GPGEncrypt mengenkripsi plaintext dengan GPG menggunakan recipient ID (email atau key ID)
@@ -118,4 +119,20 @@ func GenerateGPGKeyNative(name, email, passphrase string) (string, string, strin
 
 	// Use email as key ID for consistency
 	return email, privateKeyArmored, publicKeyArmored, nil
+}
+
+// GPGEncryptNative encrypts plaintext using native Go PGP implementation
+// publicKeyArmored should be an armored PGP public key
+func GPGEncryptNative(plaintext []byte, publicKeyArmored string) ([]byte, error) {
+	if len(publicKeyArmored) == 0 {
+		return nil, fmt.Errorf("public key is empty")
+	}
+
+	// Use helper API for encryption
+	armoredMessage, err := helper.EncryptMessageArmored(publicKeyArmored, string(plaintext))
+	if err != nil {
+		return nil, fmt.Errorf("encryption failed: %w", err)
+	}
+
+	return []byte(armoredMessage), nil
 }
