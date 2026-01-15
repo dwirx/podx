@@ -536,3 +536,55 @@ func TestGPGDecryptWrongKeyNative(t *testing.T) {
 		t.Error("expected error when decrypting with wrong key")
 	}
 }
+
+func TestGPGPasswordProtectedKeyNative(t *testing.T) {
+	passphrase := "my-secret-passphrase"
+
+	// Generate password-protected key
+	_, privateKey, publicKey, err := GenerateGPGKeyNative("Protected User", "protected@podx.local", passphrase)
+	if err != nil {
+		t.Fatalf("key generation with passphrase failed: %v", err)
+	}
+
+	tests := []struct {
+		name      string
+		plaintext []byte
+	}{
+		{"short", []byte("password protected test")},
+		{"medium", []byte("the quick brown fox jumps over the lazy dog")},
+		{"binary", []byte{0x00, 0x01, 0x02, 0xff, 0xfe, 0xfd}},
+		{"unicode", []byte("Hello 世界 🌍")},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Encrypt (public key doesn't need passphrase)
+			ciphertext, err := GPGEncryptNative(tt.plaintext, publicKey)
+			if err != nil {
+				t.Fatalf("encrypt error: %v", err)
+			}
+
+			// Decrypt with correct passphrase
+			decrypted, err := GPGDecryptNative(ciphertext, privateKey, passphrase)
+			if err != nil {
+				t.Fatalf("decrypt with correct passphrase error: %v", err)
+			}
+
+			if !bytes.Equal(decrypted, tt.plaintext) {
+				t.Error("decrypted data mismatch with correct passphrase")
+			}
+
+			// Decrypt with wrong passphrase should fail
+			_, err = GPGDecryptNative(ciphertext, privateKey, "wrong-passphrase")
+			if err == nil {
+				t.Error("expected error when decrypting with wrong passphrase")
+			}
+
+			// Decrypt with empty passphrase should fail
+			_, err = GPGDecryptNative(ciphertext, privateKey, "")
+			if err == nil {
+				t.Error("expected error when decrypting locked key with empty passphrase")
+			}
+		})
+	}
+}
