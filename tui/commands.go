@@ -100,6 +100,12 @@ func GetAllCommands() []list.Item {
 			description: "Show project status",
 			category:    "Project", args: []string{"status"},
 		},
+		CommandItem{
+			id: "sync", name: "sync",
+			description: "Encrypt, commit and push (safe git workflow)",
+			category:    "Project", args: []string{"sync"},
+			needsForm: true,
+		},
 
 		// File Commands
 		CommandItem{

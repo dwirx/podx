@@ -6,7 +6,6 @@ import (
 	"os/exec"
 
 	"github.com/ProtonMail/gopenpgp/v2/crypto"
-	"github.com/ProtonMail/gopenpgp/v2/helper"
 )
 
 // GPGEncrypt mengenkripsi plaintext dengan GPG menggunakan recipient ID (email atau key ID)
@@ -128,11 +127,80 @@ func GPGEncryptNative(plaintext []byte, publicKeyArmored string) ([]byte, error)
 		return nil, fmt.Errorf("public key is empty")
 	}
 
-	// Use helper API for encryption
-	armoredMessage, err := helper.EncryptMessageArmored(publicKeyArmored, string(plaintext))
+	// Parse public key
+	publicKeyObj, err := crypto.NewKeyFromArmored(publicKeyArmored)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse public key: %w", err)
+	}
+
+	// Create a keyring with the public key
+	keyRing, err := crypto.NewKeyRing(publicKeyObj)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create keyring: %w", err)
+	}
+
+	// Create a plaintext message from bytes
+	message := crypto.NewPlainMessage(plaintext)
+
+	// Encrypt the message
+	pgpMessage, err := keyRing.Encrypt(message, nil)
 	if err != nil {
 		return nil, fmt.Errorf("encryption failed: %w", err)
 	}
 
+	// Get armored ciphertext
+	armoredMessage, err := pgpMessage.GetArmored()
+	if err != nil {
+		return nil, fmt.Errorf("failed to armor message: %w", err)
+	}
+
 	return []byte(armoredMessage), nil
+}
+
+// GPGDecryptNative decrypts ciphertext using native Go PGP implementation
+// privateKeyArmored should be an armored PGP private key
+// passphrase should be empty string if key is not password-protected
+func GPGDecryptNative(ciphertext []byte, privateKeyArmored string, passphrase string) ([]byte, error) {
+	if len(ciphertext) == 0 {
+		return nil, fmt.Errorf("ciphertext is empty")
+	}
+
+	if len(privateKeyArmored) == 0 {
+		return nil, fmt.Errorf("private key is empty")
+	}
+
+	// Parse private key
+	privateKeyObj, err := crypto.NewKeyFromArmored(privateKeyArmored)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse private key: %w", err)
+	}
+
+	// Unlock key if passphrase is provided
+	if passphrase != "" {
+		privateKeyObj, err = privateKeyObj.Unlock([]byte(passphrase))
+		if err != nil {
+			return nil, fmt.Errorf("failed to unlock key: %w", err)
+		}
+		defer privateKeyObj.ClearPrivateParams()
+	}
+
+	// Create keyring
+	keyRing, err := crypto.NewKeyRing(privateKeyObj)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create keyring: %w", err)
+	}
+
+	// Parse the encrypted message
+	pgpMessage, err := crypto.NewPGPMessageFromArmored(string(ciphertext))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse encrypted message: %w", err)
+	}
+
+	// Decrypt the message
+	plainMessage, err := keyRing.Decrypt(pgpMessage, nil, 0)
+	if err != nil {
+		return nil, fmt.Errorf("decryption failed: %w", err)
+	}
+
+	return plainMessage.GetBinary(), nil
 }

@@ -18,6 +18,7 @@ import (
 const (
 	ActionEncryptAll = iota
 	ActionDecryptAll
+	ActionSync
 	ActionCheck
 	ActionHookInstall
 	ActionKeygen
@@ -75,6 +76,7 @@ func NewDashboardModel() DashboardModel {
 		actions: []string{
 			"Encrypt All",
 			"Decrypt All",
+			"Sync to Git",
 			"Run Check",
 			"Install Hook",
 			"Generate Key",
@@ -141,6 +143,10 @@ func (m DashboardModel) executeAction(action int) tea.Cmd {
 				return actionResultMsg{action: action, success: false, message: err.Error()}
 			}
 			return actionResultMsg{action: action, success: true, message: fmt.Sprintf("Decrypted %d files", count)}
+
+		case ActionSync:
+			// Sync is handled via TUI commands tab since it needs interactive input
+			return actionResultMsg{action: action, success: false, message: "Use Commands tab for Sync (needs interactive input)"}
 
 		case ActionCheck:
 			result := security.CheckProject(m.cwd, false)
@@ -538,11 +544,12 @@ func (m DashboardModel) renderQuickActionsWithWidth(width int) string {
 	lines = append(lines, MutedStyle.Render("  Use j/k to navigate, Enter to execute"))
 	lines = append(lines, "")
 
-	actionIcons := []string{"E", "D", "C", "H", "K", "M", "I"}
-	actionEmojis := []string{"🔐", "🔓", "🛡️", "🪝", "🔑", "📋", "🚀"}
+	actionIcons := []string{"E", "D", "S", "C", "H", "K", "M", "I"}
+	actionEmojis := []string{"🔐", "🔓", "🔄", "🛡️", "🪝", "🔑", "📋", "🚀"}
 	actionDescs := []string{
 		"Encrypt all secret files",
 		"Decrypt all secret files",
+		"Encrypt, commit and push to git",
 		"Run security checks",
 		"Install pre-commit hook",
 		"Generate new Age key pair",

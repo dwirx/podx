@@ -489,6 +489,17 @@ func CreateFormForCommand(commandID string) *FormDialogModel {
 		)
 		return &form
 
+	case "sync":
+		form := NewFormDialog(
+			"Git Sync",
+			"Encrypt secrets, run security check, commit and push",
+			[]FormField{
+				{Label: "Message", Placeholder: "feat: add new feature (optional)", Required: false},
+			},
+			commandID,
+		)
+		return &form
+
 	default:
 		return nil
 	}
@@ -503,6 +514,7 @@ func CommandNeedsForm(commandID string) bool {
 		"env-encrypt":   true,
 		"env-decrypt":   true,
 		"keygen-gpg":    true,
+		"sync":          true,
 	}
 	return needsForm[commandID]
 }
@@ -530,6 +542,12 @@ func BuildCommandArgs(commandID string, values map[string]string) []string {
 
 	case "keygen-gpg":
 		return []string{"keygen", "-t", "gpg", "-n", values["Name"], "-e", values["Email"]}
+
+	case "sync":
+		if msg := values["Message"]; msg != "" {
+			return []string{"sync", "-m", msg}
+		}
+		return []string{"sync"}
 
 	default:
 		return []string{}

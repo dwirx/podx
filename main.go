@@ -12,6 +12,7 @@ import (
 	"syscall"
 
 	"github.com/hades/podx/crypto"
+	"github.com/hades/podx/git"
 	"github.com/hades/podx/keygen"
 	"github.com/hades/podx/parser"
 	"github.com/hades/podx/project"
@@ -62,6 +63,8 @@ func main() {
 		handleDecryptAll()
 	case "status":
 		handleStatus()
+	case "sync":
+		handleSync(os.Args[2:])
 	case "check":
 		handleCheck(os.Args[2:])
 	case "hook":
@@ -114,6 +117,7 @@ PROJECT COMMANDS:
   encrypt-all    Encrypt all secrets in project
   decrypt-all    Decrypt all secrets in project
   status         Show project status
+  sync           Encrypt, check, commit and push (safe git workflow)
 
 FILE COMMANDS:
   encrypt    Encrypt a single file
@@ -135,6 +139,8 @@ USAGE:
   podx add-recipient -n "Name" -k KEY    # Add team member
   podx encrypt-all                       # Encrypt all secrets
   podx decrypt-all                       # Decrypt all secrets
+  podx sync                              # Safe git workflow
+  podx sync -m "commit message"          # Sync with message
   podx keygen -t age                     # Generate Age key
   podx update                            # Update to latest
   podx encrypt -a aes-gcm -i F -o F.enc  # Encrypt file
@@ -626,6 +632,39 @@ func handleStatus() {
 	}
 
 	fmt.Println(p.Status())
+}
+
+func handleSync(args []string) {
+	fs := flag.NewFlagSet("sync", flag.ExitOnError)
+	message := fs.String("m", "", "Commit message")
+	fs.String("message", "", "")
+	remote := fs.String("remote", "origin", "Remote name")
+	branch := fs.String("branch", "", "Branch name (default: current)")
+	securityMode := fs.String("security", "default", "Security mode (default, strict, relaxed)")
+
+	if err := fs.Parse(args); err != nil {
+		fmt.Println("Error:", err)
+		os.Exit(1)
+	}
+
+	cwd, _ := os.Getwd()
+
+	opts := &git.SyncOptions{
+		Message:      *message,
+		Remote:       *remote,
+		Branch:       *branch,
+		SecurityMode: *securityMode,
+	}
+
+	result, err := git.Sync(cwd, opts)
+	if err != nil {
+		fmt.Printf("\nSync failed: %v\n", err)
+		os.Exit(1)
+	}
+
+	if result.Pushed {
+		git.PrintSyncResult(result)
+	}
 }
 
 func printVersion() {

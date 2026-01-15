@@ -338,3 +338,53 @@ func TestGPGEncryptNative(t *testing.T) {
 		})
 	}
 }
+
+func TestGPGEncryptDecryptNative(t *testing.T) {
+	// Generate test key without passphrase
+	_, privateKey, publicKey, err := GenerateGPGKeyNative("Test User", "test@podx.local", "")
+	if err != nil {
+		t.Fatalf("key generation failed: %v", err)
+	}
+
+	tests := []struct {
+		name      string
+		plaintext []byte
+	}{
+		{"empty", []byte{}},
+		{"short", []byte("hello native gpg")},
+		{"medium", []byte("the quick brown fox jumps over the lazy dog")},
+		{"binary", []byte{0x00, 0x01, 0x02, 0xff, 0xfe, 0xfd}},
+		{"unicode", []byte("Hello 世界 🌍")},
+		{"large", bytes.Repeat([]byte("GPG native encryption test. "), 1000)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Encrypt
+			ciphertext, err := GPGEncryptNative(tt.plaintext, publicKey)
+			if err != nil {
+				t.Fatalf("encrypt error: %v", err)
+			}
+
+			if len(ciphertext) == 0 {
+				t.Fatal("ciphertext is empty")
+			}
+
+			// Verify ASCII armor format
+			if !bytes.Contains(ciphertext, []byte("-----BEGIN PGP MESSAGE-----")) {
+				t.Error("ciphertext not in ASCII armor format")
+			}
+
+			// Decrypt
+			decrypted, err := GPGDecryptNative(ciphertext, privateKey, "")
+			if err != nil {
+				t.Fatalf("decrypt error: %v", err)
+			}
+
+			// Verify decrypted matches original
+			if !bytes.Equal(decrypted, tt.plaintext) {
+				t.Errorf("decrypted data mismatch: got %d bytes, want %d bytes", len(decrypted), len(tt.plaintext))
+			}
+		})
+	}
+}
