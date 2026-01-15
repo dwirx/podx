@@ -68,3 +68,45 @@ func TestEncryptDialogMethodSelection(t *testing.T) {
 		t.Error("expected methodStep to be true (start with method selection)")
 	}
 }
+
+// TestEncryptDialogGPGRecipientInput verifies GPG recipient input fields
+func TestEncryptDialogGPGRecipientInput(t *testing.T) {
+	// Create a new dialog model
+	dialog := NewEncryptDialogModel()
+
+	// Set the method to GPG
+	dialog.method = MethodGPG
+	dialog.methodStep = false // past method selection
+
+	// Test 1: Verify gpgRecipientInput field exists and is initialized
+	// The field should have a placeholder
+	expectedPlaceholder := "email@example.com or Key ID"
+	if dialog.gpgRecipientInput.Placeholder != expectedPlaceholder {
+		t.Errorf("expected gpgRecipientInput.Placeholder to be %q, got %q", expectedPlaceholder, dialog.gpgRecipientInput.Placeholder)
+	}
+
+	// Test 2: Verify we can set a value
+	testEmail := "user@example.com"
+	dialog.gpgRecipientInput.SetValue(testEmail)
+
+	// Test 3: Verify value is retrieved correctly
+	if dialog.gpgRecipientInput.Value() != testEmail {
+		t.Errorf("expected gpgRecipientInput.Value() to be %q, got %q", testEmail, dialog.gpgRecipientInput.Value())
+	}
+
+	// Test 4: Verify gpgRecipients array is initialized as empty
+	if dialog.gpgRecipients == nil {
+		t.Error("expected gpgRecipients to be initialized (not nil)")
+	}
+	if len(dialog.gpgRecipients) != 0 {
+		t.Errorf("expected gpgRecipients to be empty initially, got %d items", len(dialog.gpgRecipients))
+	}
+
+	// Test 5: Verify gpgSuggestions array is initialized as empty
+	if dialog.gpgSuggestions == nil {
+		t.Error("expected gpgSuggestions to be initialized (not nil)")
+	}
+	if len(dialog.gpgSuggestions) != 0 {
+		t.Errorf("expected gpgSuggestions to be empty initially, got %d items", len(dialog.gpgSuggestions))
+	}
+}

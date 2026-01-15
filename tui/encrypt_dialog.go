@@ -79,6 +79,11 @@ type EncryptDialogModel struct {
 	// Recipient selection fields
 	selectedRecipients []bool // track which recipients are selected
 	recipientCursor    int    // cursor position in recipient list
+
+	// GPG-specific fields
+	gpgRecipientInput textinput.Model // GPG recipient email/key ID
+	gpgRecipients     []string        // selected recipients
+	gpgSuggestions    []string        // recipient suggestions from keyring
 }
 
 // encryptCompleteMsg is sent when encryption is complete
@@ -119,16 +124,23 @@ func NewEncryptDialogModel() EncryptDialogModel {
 	recipientKey.Placeholder = "age1xxxxxxxxxx..."
 	recipientKey.CharLimit = 256
 
+	gpgRecipientInput := textinput.New()
+	gpgRecipientInput.Placeholder = "email@example.com or Key ID"
+	gpgRecipientInput.CharLimit = 100
+
 	return EncryptDialogModel{
-		visible:       false,
-		state:         StateSelectMethod,
-		method:        MethodPassword,
-		methods:       []string{"Password", "Age Key", "GPG Key"},
-		methodStep:    true,
-		password:      password,
-		confirmPass:   confirmPass,
-		recipientName: recipientName,
-		recipientKey:  recipientKey,
+		visible:           false,
+		state:             StateSelectMethod,
+		method:            MethodPassword,
+		methods:           []string{"Password", "Age Key", "GPG Key"},
+		methodStep:        true,
+		password:          password,
+		confirmPass:       confirmPass,
+		recipientName:     recipientName,
+		recipientKey:      recipientKey,
+		gpgRecipientInput: gpgRecipientInput,
+		gpgRecipients:     []string{},
+		gpgSuggestions:    []string{},
 	}
 }
 
