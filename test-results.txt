@@ -1,0 +1,719 @@
+=== RUN   TestGPGIntegration
+    integration_test.go:27: Generating GPG key pair...
+    integration_test.go:51: Creating test file...
+    integration_test.go:59: Encrypting file with GPG...
+    integration_test.go:88: Decrypting file with GPG...
+    integration_test.go:99: GPG integration test PASSED
+--- PASS: TestGPGIntegration (1.95s)
+=== RUN   TestAgeIntegration
+    integration_test.go:116: Generating Age key pair...
+    integration_test.go:134: Creating test file...
+    integration_test.go:142: Encrypting file with Age...
+    integration_test.go:168: Decrypting file with Age...
+    integration_test.go:179: Age integration test PASSED
+--- PASS: TestAgeIntegration (0.00s)
+=== RUN   TestGPGMultiRecipientIntegration
+    integration_test.go:189: Generating GPG key pair 1...
+    integration_test.go:195: Generating GPG key pair 2...
+    integration_test.go:205: Encrypting for multiple recipients...
+    integration_test.go:213: Decrypting with recipient 1's key...
+    integration_test.go:222: Decrypting with recipient 2's key...
+    integration_test.go:231: GPG multi-recipient integration test PASSED
+--- PASS: TestGPGMultiRecipientIntegration (3.98s)
+=== RUN   TestAgeMultiRecipientIntegration
+    integration_test.go:241: Generating Age key pair 1...
+    integration_test.go:247: Generating Age key pair 2...
+    integration_test.go:257: Encrypting for multiple recipients...
+    integration_test.go:264: Decrypting with recipient 1's key...
+    integration_test.go:273: Decrypting with recipient 2's key...
+    integration_test.go:282: Age multi-recipient integration test PASSED
+--- PASS: TestAgeMultiRecipientIntegration (0.00s)
+=== RUN   TestGPGPasswordProtectedIntegration
+    integration_test.go:294: Generating password-protected GPG key...
+    integration_test.go:308: Encrypting with password-protected key...
+    integration_test.go:315: Decrypting with correct passphrase...
+    integration_test.go:325: Verifying wrong passphrase fails...
+    integration_test.go:332: Verifying empty passphrase fails...
+    integration_test.go:338: GPG password-protected integration test PASSED
+--- PASS: TestGPGPasswordProtectedIntegration (1.56s)
+=== RUN   TestLargeFileIntegration
+    integration_test.go:348: Generating keys for large file test...
+    integration_test.go:360: Creating large test file (1MB)...
+=== RUN   TestLargeFileIntegration/GPG_large_file
+    integration_test.go:365: Encrypting large file with GPG...
+    integration_test.go:371: Decrypting large file with GPG...
+    integration_test.go:380: GPG large file test PASSED
+=== RUN   TestLargeFileIntegration/Age_large_file
+    integration_test.go:385: Encrypting large file with Age...
+    integration_test.go:391: Decrypting large file with Age...
+    integration_test.go:400: Age large file test PASSED
+--- PASS: TestLargeFileIntegration (3.34s)
+    --- PASS: TestLargeFileIntegration/GPG_large_file (0.08s)
+    --- PASS: TestLargeFileIntegration/Age_large_file (0.01s)
+=== RUN   TestCrossCompatibilityGPG
+    integration_test.go:411: Generating GPG key for cross-compatibility test...
+    integration_test.go:420: Testing GPGEncrypt auto-detection...
+    integration_test.go:427: Testing GPGDecryptWithKey auto-detection...
+    integration_test.go:437: GPG cross-compatibility test PASSED
+--- PASS: TestCrossCompatibilityGPG (3.65s)
+=== RUN   TestErrorHandlingIntegration
+=== RUN   TestErrorHandlingIntegration/GPG_wrong_key
+=== RUN   TestErrorHandlingIntegration/Age_wrong_key
+=== RUN   TestErrorHandlingIntegration/GPG_tampered
+=== RUN   TestErrorHandlingIntegration/Age_tampered
+=== NAME  TestErrorHandlingIntegration
+    integration_test.go:506: Error handling integration tests PASSED
+--- PASS: TestErrorHandlingIntegration (8.66s)
+    --- PASS: TestErrorHandlingIntegration/GPG_wrong_key (6.63s)
+    --- PASS: TestErrorHandlingIntegration/Age_wrong_key (0.00s)
+    --- PASS: TestErrorHandlingIntegration/GPG_tampered (2.03s)
+    --- PASS: TestErrorHandlingIntegration/Age_tampered (0.00s)
+PASS
+coverage: 0.0% of statements
+ok  	github.com/hades/podx	23.933s	coverage: 0.0% of statements
+=== RUN   TestAESGCMEncryptDecrypt
+=== RUN   TestAESGCMEncryptDecrypt/empty
+=== RUN   TestAESGCMEncryptDecrypt/short
+=== RUN   TestAESGCMEncryptDecrypt/medium
+=== RUN   TestAESGCMEncryptDecrypt/binary
+--- PASS: TestAESGCMEncryptDecrypt (0.00s)
+    --- PASS: TestAESGCMEncryptDecrypt/empty (0.00s)
+    --- PASS: TestAESGCMEncryptDecrypt/short (0.00s)
+    --- PASS: TestAESGCMEncryptDecrypt/medium (0.00s)
+    --- PASS: TestAESGCMEncryptDecrypt/binary (0.00s)
+=== RUN   TestAESGCMInvalidKeySize
+--- PASS: TestAESGCMInvalidKeySize (0.00s)
+=== RUN   TestAESGCMDecryptTamperedData
+--- PASS: TestAESGCMDecryptTamperedData (0.00s)
+=== RUN   TestAESGCMDecryptTooShort
+--- PASS: TestAESGCMDecryptTooShort (0.00s)
+=== RUN   TestAESGCMNonceUniqueness
+--- PASS: TestAESGCMNonceUniqueness (0.00s)
+=== RUN   TestAESGCMLargeData
+--- PASS: TestAESGCMLargeData (0.00s)
+=== RUN   TestAESGCMDifferentKeys
+--- PASS: TestAESGCMDifferentKeys (0.00s)
+=== RUN   TestAgeEncryptDecrypt
+=== RUN   TestAgeEncryptDecrypt/empty
+=== RUN   TestAgeEncryptDecrypt/short
+=== RUN   TestAgeEncryptDecrypt/medium
+=== RUN   TestAgeEncryptDecrypt/long
+=== RUN   TestAgeEncryptDecrypt/binary
+=== RUN   TestAgeEncryptDecrypt/unicode
+=== RUN   TestAgeEncryptDecrypt/newlines
+--- PASS: TestAgeEncryptDecrypt (0.01s)
+    --- PASS: TestAgeEncryptDecrypt/empty (0.00s)
+    --- PASS: TestAgeEncryptDecrypt/short (0.00s)
+    --- PASS: TestAgeEncryptDecrypt/medium (0.00s)
+    --- PASS: TestAgeEncryptDecrypt/long (0.00s)
+    --- PASS: TestAgeEncryptDecrypt/binary (0.00s)
+    --- PASS: TestAgeEncryptDecrypt/unicode (0.00s)
+    --- PASS: TestAgeEncryptDecrypt/newlines (0.00s)
+=== RUN   TestAgeMultipleRecipients
+--- PASS: TestAgeMultipleRecipients (0.00s)
+=== RUN   TestAgeInvalidRecipient
+=== RUN   TestAgeInvalidRecipient/empty
+=== RUN   TestAgeInvalidRecipient/invalid_format
+=== RUN   TestAgeInvalidRecipient/wrong_prefix
+=== RUN   TestAgeInvalidRecipient/malformed
+--- PASS: TestAgeInvalidRecipient (0.00s)
+    --- PASS: TestAgeInvalidRecipient/empty (0.00s)
+    --- PASS: TestAgeInvalidRecipient/invalid_format (0.00s)
+    --- PASS: TestAgeInvalidRecipient/wrong_prefix (0.00s)
+    --- PASS: TestAgeInvalidRecipient/malformed (0.00s)
+=== RUN   TestAgeInvalidPrivateKey
+=== RUN   TestAgeInvalidPrivateKey/empty
+=== RUN   TestAgeInvalidPrivateKey/invalid_format
+=== RUN   TestAgeInvalidPrivateKey/wrong_key
+=== RUN   TestAgeInvalidPrivateKey/wrong_valid_key
+=== RUN   TestAgeInvalidPrivateKey/correct_key
+--- PASS: TestAgeInvalidPrivateKey (0.00s)
+    --- PASS: TestAgeInvalidPrivateKey/empty (0.00s)
+    --- PASS: TestAgeInvalidPrivateKey/invalid_format (0.00s)
+    --- PASS: TestAgeInvalidPrivateKey/wrong_key (0.00s)
+    --- PASS: TestAgeInvalidPrivateKey/wrong_valid_key (0.00s)
+    --- PASS: TestAgeInvalidPrivateKey/correct_key (0.00s)
+=== RUN   TestAgeDecryptTamperedData
+=== RUN   TestAgeDecryptTamperedData/flip_first_byte
+=== RUN   TestAgeDecryptTamperedData/flip_last_byte
+=== RUN   TestAgeDecryptTamperedData/flip_middle_byte
+=== RUN   TestAgeDecryptTamperedData/truncate
+--- PASS: TestAgeDecryptTamperedData (0.00s)
+    --- PASS: TestAgeDecryptTamperedData/flip_first_byte (0.00s)
+    --- PASS: TestAgeDecryptTamperedData/flip_last_byte (0.00s)
+    --- PASS: TestAgeDecryptTamperedData/flip_middle_byte (0.00s)
+    --- PASS: TestAgeDecryptTamperedData/truncate (0.00s)
+=== RUN   TestGenerateAgeKey
+--- PASS: TestGenerateAgeKey (0.00s)
+=== RUN   TestDeriveAgePublicKey
+--- PASS: TestDeriveAgePublicKey (0.00s)
+=== RUN   TestDeriveAgePublicKeyInvalid
+=== RUN   TestDeriveAgePublicKeyInvalid/empty
+=== RUN   TestDeriveAgePublicKeyInvalid/invalid
+=== RUN   TestDeriveAgePublicKeyInvalid/public_key
+--- PASS: TestDeriveAgePublicKeyInvalid (0.00s)
+    --- PASS: TestDeriveAgePublicKeyInvalid/empty (0.00s)
+    --- PASS: TestDeriveAgePublicKeyInvalid/invalid (0.00s)
+    --- PASS: TestDeriveAgePublicKeyInvalid/public_key (0.00s)
+=== RUN   TestAgeEncryptDecryptLargeData
+--- PASS: TestAgeEncryptDecryptLargeData (0.01s)
+=== RUN   TestAgeKeyUniqueness
+--- PASS: TestAgeKeyUniqueness (0.00s)
+=== RUN   TestChaCha20EncryptDecrypt
+=== RUN   TestChaCha20EncryptDecrypt/empty
+=== RUN   TestChaCha20EncryptDecrypt/short
+=== RUN   TestChaCha20EncryptDecrypt/medium
+=== RUN   TestChaCha20EncryptDecrypt/binary
+--- PASS: TestChaCha20EncryptDecrypt (0.00s)
+    --- PASS: TestChaCha20EncryptDecrypt/empty (0.00s)
+    --- PASS: TestChaCha20EncryptDecrypt/short (0.00s)
+    --- PASS: TestChaCha20EncryptDecrypt/medium (0.00s)
+    --- PASS: TestChaCha20EncryptDecrypt/binary (0.00s)
+=== RUN   TestChaCha20InvalidKeySize
+--- PASS: TestChaCha20InvalidKeySize (0.00s)
+=== RUN   TestChaCha20DecryptTamperedData
+--- PASS: TestChaCha20DecryptTamperedData (0.00s)
+=== RUN   TestChaCha20DecryptTooShort
+--- PASS: TestChaCha20DecryptTooShort (0.00s)
+=== RUN   TestXChaCha20EncryptDecrypt
+=== RUN   TestXChaCha20EncryptDecrypt/empty
+=== RUN   TestXChaCha20EncryptDecrypt/short
+=== RUN   TestXChaCha20EncryptDecrypt/medium
+=== RUN   TestXChaCha20EncryptDecrypt/long
+=== RUN   TestXChaCha20EncryptDecrypt/binary
+=== RUN   TestXChaCha20EncryptDecrypt/unicode
+--- PASS: TestXChaCha20EncryptDecrypt (0.00s)
+    --- PASS: TestXChaCha20EncryptDecrypt/empty (0.00s)
+    --- PASS: TestXChaCha20EncryptDecrypt/short (0.00s)
+    --- PASS: TestXChaCha20EncryptDecrypt/medium (0.00s)
+    --- PASS: TestXChaCha20EncryptDecrypt/long (0.00s)
+    --- PASS: TestXChaCha20EncryptDecrypt/binary (0.00s)
+    --- PASS: TestXChaCha20EncryptDecrypt/unicode (0.00s)
+=== RUN   TestXChaCha20InvalidKeySize
+=== RUN   TestXChaCha20InvalidKeySize/too_short
+=== RUN   TestXChaCha20InvalidKeySize/too_long
+=== RUN   TestXChaCha20InvalidKeySize/zero
+--- PASS: TestXChaCha20InvalidKeySize (0.00s)
+    --- PASS: TestXChaCha20InvalidKeySize/too_short (0.00s)
+    --- PASS: TestXChaCha20InvalidKeySize/too_long (0.00s)
+    --- PASS: TestXChaCha20InvalidKeySize/zero (0.00s)
+=== RUN   TestXChaCha20DecryptTamperedData
+--- PASS: TestXChaCha20DecryptTamperedData (0.00s)
+=== RUN   TestXChaCha20DecryptTooShort
+--- PASS: TestXChaCha20DecryptTooShort (0.00s)
+=== RUN   TestXChaCha20EncryptDecryptWithNonce
+--- PASS: TestXChaCha20EncryptDecryptWithNonce (0.00s)
+=== RUN   TestXChaCha20WithNonceInvalidNonceSize
+=== RUN   TestXChaCha20WithNonceInvalidNonceSize/too_short
+=== RUN   TestXChaCha20WithNonceInvalidNonceSize/too_long
+=== RUN   TestXChaCha20WithNonceInvalidNonceSize/zero
+--- PASS: TestXChaCha20WithNonceInvalidNonceSize (0.00s)
+    --- PASS: TestXChaCha20WithNonceInvalidNonceSize/too_short (0.00s)
+    --- PASS: TestXChaCha20WithNonceInvalidNonceSize/too_long (0.00s)
+    --- PASS: TestXChaCha20WithNonceInvalidNonceSize/zero (0.00s)
+=== RUN   TestXChaCha20DeterministicWithSameNonce
+--- PASS: TestXChaCha20DeterministicWithSameNonce (0.00s)
+=== RUN   TestXChaCha20RandomNonceDifferent
+--- PASS: TestXChaCha20RandomNonceDifferent (0.00s)
+=== RUN   TestCompressDecompress
+--- PASS: TestCompressDecompress (0.00s)
+=== RUN   TestCompressLevels
+--- PASS: TestCompressLevels (0.04s)
+=== RUN   TestCompressEmpty
+--- PASS: TestCompressEmpty (0.00s)
+=== RUN   TestIsCompressed
+--- PASS: TestIsCompressed (0.00s)
+=== RUN   TestShouldCompress
+=== RUN   TestShouldCompress/short_data
+=== RUN   TestShouldCompress/normal_text
+=== RUN   TestShouldCompress/PNG_header
+=== RUN   TestShouldCompress/JPEG_header
+=== RUN   TestShouldCompress/ZIP_header
+=== RUN   TestShouldCompress/GZIP_header
+=== RUN   TestShouldCompress/already_ZSTD
+--- PASS: TestShouldCompress (0.00s)
+    --- PASS: TestShouldCompress/short_data (0.00s)
+    --- PASS: TestShouldCompress/normal_text (0.00s)
+    --- PASS: TestShouldCompress/PNG_header (0.00s)
+    --- PASS: TestShouldCompress/JPEG_header (0.00s)
+    --- PASS: TestShouldCompress/ZIP_header (0.00s)
+    --- PASS: TestShouldCompress/GZIP_header (0.00s)
+    --- PASS: TestShouldCompress/already_ZSTD (0.00s)
+=== RUN   TestCompressIfBeneficial
+--- PASS: TestCompressIfBeneficial (0.00s)
+=== RUN   TestGetCompressionStats
+--- PASS: TestGetCompressionStats (0.00s)
+=== RUN   TestCompressWriter
+--- PASS: TestCompressWriter (0.00s)
+=== RUN   TestDecompressReader
+--- PASS: TestDecompressReader (0.00s)
+=== RUN   TestNewEncryptor
+=== RUN   TestNewEncryptor/aes-gcm
+=== RUN   TestNewEncryptor/chacha20
+=== RUN   TestNewEncryptor/unknown
+=== RUN   TestNewEncryptor/#00
+--- PASS: TestNewEncryptor (0.00s)
+    --- PASS: TestNewEncryptor/aes-gcm (0.00s)
+    --- PASS: TestNewEncryptor/chacha20 (0.00s)
+    --- PASS: TestNewEncryptor/unknown (0.00s)
+    --- PASS: TestNewEncryptor/#00 (0.00s)
+=== RUN   TestEncryptorRoundtrip
+=== RUN   TestEncryptorRoundtrip/aes-gcm
+=== RUN   TestEncryptorRoundtrip/chacha20
+--- PASS: TestEncryptorRoundtrip (0.00s)
+    --- PASS: TestEncryptorRoundtrip/aes-gcm (0.00s)
+    --- PASS: TestEncryptorRoundtrip/chacha20 (0.00s)
+=== RUN   TestEncryptorName
+--- PASS: TestEncryptorName (0.00s)
+=== RUN   TestEncryptToBase64
+--- PASS: TestEncryptToBase64 (0.00s)
+=== RUN   TestDecryptFromBase64InvalidInput
+--- PASS: TestDecryptFromBase64InvalidInput (0.00s)
+=== RUN   TestCheckGPGInstalled
+    gpg_test.go:11: GPG not installed, skipping GPG tests
+--- SKIP: TestCheckGPGInstalled (0.11s)
+=== RUN   TestGPGEncryptDecrypt
+    gpg_test.go:17: GPG not installed
+--- SKIP: TestGPGEncryptDecrypt (0.13s)
+=== RUN   TestGPGEncryptInvalidRecipient
+    gpg_test.go:77: GPG not installed
+--- SKIP: TestGPGEncryptInvalidRecipient (0.12s)
+=== RUN   TestGPGDecryptInvalidData
+    gpg_test.go:102: GPG not installed
+--- SKIP: TestGPGDecryptInvalidData (0.11s)
+=== RUN   TestGPGDecryptTamperedData
+    gpg_test.go:126: GPG not installed
+--- SKIP: TestGPGDecryptTamperedData (0.12s)
+=== RUN   TestGenerateGPGKey
+    gpg_test.go:153: GPG not installed
+--- SKIP: TestGenerateGPGKey (0.14s)
+=== RUN   TestGPGLargeData
+    gpg_test.go:197: GPG not installed
+--- SKIP: TestGPGLargeData (0.12s)
+=== RUN   TestGenerateGPGKeyNative
+--- PASS: TestGenerateGPGKeyNative (3.16s)
+=== RUN   TestGPGEncryptNative
+=== RUN   TestGPGEncryptNative/empty
+=== RUN   TestGPGEncryptNative/short
+=== RUN   TestGPGEncryptNative/medium
+=== RUN   TestGPGEncryptNative/binary
+=== RUN   TestGPGEncryptNative/unicode
+--- PASS: TestGPGEncryptNative (2.34s)
+    --- PASS: TestGPGEncryptNative/empty (0.00s)
+    --- PASS: TestGPGEncryptNative/short (0.00s)
+    --- PASS: TestGPGEncryptNative/medium (0.00s)
+    --- PASS: TestGPGEncryptNative/binary (0.00s)
+    --- PASS: TestGPGEncryptNative/unicode (0.00s)
+=== RUN   TestGPGEncryptDecryptNative
+=== RUN   TestGPGEncryptDecryptNative/empty
+=== RUN   TestGPGEncryptDecryptNative/short
+=== RUN   TestGPGEncryptDecryptNative/medium
+=== RUN   TestGPGEncryptDecryptNative/binary
+=== RUN   TestGPGEncryptDecryptNative/unicode
+=== RUN   TestGPGEncryptDecryptNative/large
+--- PASS: TestGPGEncryptDecryptNative (7.58s)
+    --- PASS: TestGPGEncryptDecryptNative/empty (0.04s)
+    --- PASS: TestGPGEncryptDecryptNative/short (0.04s)
+    --- PASS: TestGPGEncryptDecryptNative/medium (0.04s)
+    --- PASS: TestGPGEncryptDecryptNative/binary (0.03s)
+    --- PASS: TestGPGEncryptDecryptNative/unicode (0.04s)
+    --- PASS: TestGPGEncryptDecryptNative/large (0.04s)
+=== RUN   TestGPGEncryptMultipleRecipientsNative
+=== RUN   TestGPGEncryptMultipleRecipientsNative/short
+=== RUN   TestGPGEncryptMultipleRecipientsNative/medium
+=== RUN   TestGPGEncryptMultipleRecipientsNative/binary
+=== RUN   TestGPGEncryptMultipleRecipientsNative/unicode
+--- PASS: TestGPGEncryptMultipleRecipientsNative (3.62s)
+    --- PASS: TestGPGEncryptMultipleRecipientsNative/short (0.07s)
+    --- PASS: TestGPGEncryptMultipleRecipientsNative/medium (0.07s)
+    --- PASS: TestGPGEncryptMultipleRecipientsNative/binary (0.08s)
+    --- PASS: TestGPGEncryptMultipleRecipientsNative/unicode (0.07s)
+=== RUN   TestGPGDecryptTamperedDataNative
+--- PASS: TestGPGDecryptTamperedDataNative (1.39s)
+=== RUN   TestGPGDecryptInvalidDataNative
+=== RUN   TestGPGDecryptInvalidDataNative/empty
+=== RUN   TestGPGDecryptInvalidDataNative/invalid
+=== RUN   TestGPGDecryptInvalidDataNative/malformed_armor
+--- PASS: TestGPGDecryptInvalidDataNative (1.67s)
+    --- PASS: TestGPGDecryptInvalidDataNative/empty (0.00s)
+    --- PASS: TestGPGDecryptInvalidDataNative/invalid (0.03s)
+    --- PASS: TestGPGDecryptInvalidDataNative/malformed_armor (0.02s)
+=== RUN   TestGPGDecryptWrongKeyNative
+--- PASS: TestGPGDecryptWrongKeyNative (7.61s)
+=== RUN   TestGPGPasswordProtectedKeyNative
+=== RUN   TestGPGPasswordProtectedKeyNative/short
+=== RUN   TestGPGPasswordProtectedKeyNative/medium
+=== RUN   TestGPGPasswordProtectedKeyNative/binary
+=== RUN   TestGPGPasswordProtectedKeyNative/unicode
+--- PASS: TestGPGPasswordProtectedKeyNative (1.87s)
+    --- PASS: TestGPGPasswordProtectedKeyNative/short (0.05s)
+    --- PASS: TestGPGPasswordProtectedKeyNative/medium (0.04s)
+    --- PASS: TestGPGPasswordProtectedKeyNative/binary (0.04s)
+    --- PASS: TestGPGPasswordProtectedKeyNative/unicode (0.04s)
+=== RUN   TestDeriveKey
+--- PASS: TestDeriveKey (0.24s)
+=== RUN   TestDeriveKeyDifferentSalts
+--- PASS: TestDeriveKeyDifferentSalts (0.16s)
+=== RUN   TestDeriveKeyWithProvidedSalt
+--- PASS: TestDeriveKeyWithProvidedSalt (0.14s)
+=== RUN   TestDeriveKeyInvalidSaltSize
+--- PASS: TestDeriveKeyInvalidSaltSize (0.00s)
+=== RUN   TestGenerateShareQRCode
+--- PASS: TestGenerateShareQRCode (0.01s)
+=== RUN   TestSaveShareQRCode
+--- PASS: TestSaveShareQRCode (0.01s)
+=== RUN   TestSaveAllShareQRCodes
+--- PASS: TestSaveAllShareQRCodes (0.02s)
+=== RUN   TestParseShareFromQRData
+--- PASS: TestParseShareFromQRData (0.00s)
+=== RUN   TestParseShareFromQRDataInvalid
+--- PASS: TestParseShareFromQRDataInvalid (0.00s)
+=== RUN   TestGenerateShareQRCodeASCII
+--- PASS: TestGenerateShareQRCodeASCII (0.00s)
+=== RUN   TestQRCodeOptions
+--- PASS: TestQRCodeOptions (0.01s)
+=== RUN   TestCanFitInQRCode
+--- PASS: TestCanFitInQRCode (0.00s)
+=== RUN   TestQRCodeCapacity
+--- PASS: TestQRCodeCapacity (0.00s)
+=== RUN   TestGenerateCombinedQRSheet
+--- PASS: TestGenerateCombinedQRSheet (0.07s)
+=== RUN   TestGenerateCombinedQRSheetEmpty
+--- PASS: TestGenerateCombinedQRSheetEmpty (0.00s)
+=== RUN   TestGeneratePrintableSheet
+--- PASS: TestGeneratePrintableSheet (0.01s)
+=== RUN   TestQRCodeWithDifferentSecretSizes
+=== RUN   TestQRCodeWithDifferentSecretSizes/TestQRCodeWithDifferentSecretSizes
+=== RUN   TestQRCodeWithDifferentSecretSizes/TestQRCodeWithDifferentSecretSizes#01
+=== RUN   TestQRCodeWithDifferentSecretSizes/TestQRCodeWithDifferentSecretSizes#02
+=== RUN   TestQRCodeWithDifferentSecretSizes/TestQRCodeWithDifferentSecretSizes#03
+=== RUN   TestQRCodeWithDifferentSecretSizes/TestQRCodeWithDifferentSecretSizes#04
+--- PASS: TestQRCodeWithDifferentSecretSizes (0.05s)
+    --- PASS: TestQRCodeWithDifferentSecretSizes/TestQRCodeWithDifferentSecretSizes (0.01s)
+    --- PASS: TestQRCodeWithDifferentSecretSizes/TestQRCodeWithDifferentSecretSizes#01 (0.01s)
+    --- PASS: TestQRCodeWithDifferentSecretSizes/TestQRCodeWithDifferentSecretSizes#02 (0.01s)
+    --- PASS: TestQRCodeWithDifferentSecretSizes/TestQRCodeWithDifferentSecretSizes#03 (0.01s)
+    --- PASS: TestQRCodeWithDifferentSecretSizes/TestQRCodeWithDifferentSecretSizes#04 (0.01s)
+=== RUN   TestSecureWipe
+--- PASS: TestSecureWipe (0.00s)
+=== RUN   TestSecureWipeMultiple
+--- PASS: TestSecureWipeMultiple (0.00s)
+=== RUN   TestSecureBuffer
+--- PASS: TestSecureBuffer (0.00s)
+=== RUN   TestSecureBufferFromBytes
+--- PASS: TestSecureBufferFromBytes (0.00s)
+=== RUN   TestSecureCompare
+--- PASS: TestSecureCompare (0.00s)
+=== RUN   TestSecureString
+--- PASS: TestSecureString (0.00s)
+=== RUN   TestWithSecureBuffer
+--- PASS: TestWithSecureBuffer (0.00s)
+=== RUN   TestWithSecureBytes
+--- PASS: TestWithSecureBytes (0.00s)
+=== RUN   TestDerivedKeysSecure
+--- PASS: TestDerivedKeysSecure (0.00s)
+=== RUN   TestShamirSplitCombine
+=== RUN   TestShamirSplitCombine/2-of-3
+=== RUN   TestShamirSplitCombine/3-of-5
+=== RUN   TestShamirSplitCombine/4-of-7
+=== RUN   TestShamirSplitCombine/5-of-5
+--- PASS: TestShamirSplitCombine (0.00s)
+    --- PASS: TestShamirSplitCombine/2-of-3 (0.00s)
+    --- PASS: TestShamirSplitCombine/3-of-5 (0.00s)
+    --- PASS: TestShamirSplitCombine/4-of-7 (0.00s)
+    --- PASS: TestShamirSplitCombine/5-of-5 (0.00s)
+=== RUN   TestShamirDifferentShareCombinations
+--- PASS: TestShamirDifferentShareCombinations (0.00s)
+=== RUN   TestShamirInsufficientShares
+--- PASS: TestShamirInsufficientShares (0.00s)
+=== RUN   TestShamirInvalidParams
+--- PASS: TestShamirInvalidParams (0.00s)
+=== RUN   TestShareExportImport
+--- PASS: TestShareExportImport (0.00s)
+=== RUN   TestShareSaveLoad
+--- PASS: TestShareSaveLoad (0.00s)
+=== RUN   TestValidateShares
+--- PASS: TestValidateShares (0.00s)
+=== RUN   TestGetPreset
+--- PASS: TestGetPreset (0.00s)
+=== RUN   TestShareInfo
+--- PASS: TestShareInfo (0.00s)
+=== RUN   TestShamirLargeSecret
+--- PASS: TestShamirLargeSecret (0.00s)
+=== RUN   TestImportCorruptedShare
+--- PASS: TestImportCorruptedShare (0.00s)
+=== RUN   TestSaveShareCreatesFile
+--- PASS: TestSaveShareCreatesFile (0.00s)
+=== RUN   TestHKDFSubkeyDerivation
+--- PASS: TestHKDFSubkeyDerivation (0.00s)
+=== RUN   TestXChaCha20Encryption
+--- PASS: TestXChaCha20Encryption (0.00s)
+=== RUN   TestSerpentCTREncryption
+--- PASS: TestSerpentCTREncryption (0.00s)
+=== RUN   TestCascadeEncryption
+--- PASS: TestCascadeEncryption (0.00s)
+=== RUN   TestBlake2bMAC
+--- PASS: TestBlake2bMAC (0.00s)
+=== RUN   TestHMACSHA3
+--- PASS: TestHMACSHA3 (0.00s)
+=== RUN   TestEncryptV2NormalMode
+--- PASS: TestEncryptV2NormalMode (1.26s)
+=== RUN   TestEncryptV2ParanoidMode
+--- PASS: TestEncryptV2ParanoidMode (3.65s)
+=== RUN   TestEncryptV2XChaCha20
+--- PASS: TestEncryptV2XChaCha20 (0.85s)
+=== RUN   TestDetectAndDecrypt
+--- PASS: TestDetectAndDecrypt (0.92s)
+=== RUN   TestAdaptiveKDFParams
+--- PASS: TestAdaptiveKDFParams (0.00s)
+=== RUN   TestDeriveNonce
+--- PASS: TestDeriveNonce (0.00s)
+=== RUN   TestParseEncryptMode
+--- PASS: TestParseEncryptMode (0.00s)
+=== RUN   TestParseCipher
+--- PASS: TestParseCipher (0.00s)
+PASS
+coverage: 54.4% of statements
+ok  	github.com/hades/podx/crypto	(cached)	coverage: 54.4% of statements
+=== RUN   TestREADMEStructure
+    readme_test.go:43: README.md missing required section or keyword: "## Features"
+    readme_test.go:43: README.md missing required section or keyword: "## Installation"
+    readme_test.go:43: README.md missing required section or keyword: "## Quick Start"
+    readme_test.go:43: README.md missing required section or keyword: "## Encryption Methods"
+    readme_test.go:43: README.md missing required section or keyword: "#### Age X25519"
+    readme_test.go:43: README.md missing required section or keyword: "#### GPG/PGP"
+    readme_test.go:43: README.md missing required section or keyword: "## TUI (Terminal User Interface)"
+    readme_test.go:43: README.md missing required section or keyword: "## Performance"
+    readme_test.go:43: README.md missing required section or keyword: "No external GPG binary required"
+--- FAIL: TestREADMEStructure (0.00s)
+FAIL
+coverage: [no statements]
+FAIL	github.com/hades/podx/docs	0.006s
+=== RUN   TestIsGitRepo
+--- PASS: TestIsGitRepo (0.01s)
+=== RUN   TestGetCurrentBranch
+--- PASS: TestGetCurrentBranch (0.00s)
+=== RUN   TestGenerateCommitMessage
+=== RUN   TestGenerateCommitMessage/encrypted_files
+    git_test.go:79: Generated message: chore: encrypt secrets
+=== RUN   TestGenerateCommitMessage/config_files
+    git_test.go:79: Generated message: chore: update config
+=== RUN   TestGenerateCommitMessage/source_files
+    git_test.go:79: Generated message: feat: update source files
+=== RUN   TestGenerateCommitMessage/mixed_files
+    git_test.go:79: Generated message: feat: encrypt .env.podx, update main.go
+=== RUN   TestGenerateCommitMessage/empty_files
+    git_test.go:79: Generated message: chore: update files
+--- PASS: TestGenerateCommitMessage (0.00s)
+    --- PASS: TestGenerateCommitMessage/encrypted_files (0.00s)
+    --- PASS: TestGenerateCommitMessage/config_files (0.00s)
+    --- PASS: TestGenerateCommitMessage/source_files (0.00s)
+    --- PASS: TestGenerateCommitMessage/mixed_files (0.00s)
+    --- PASS: TestGenerateCommitMessage/empty_files (0.00s)
+=== RUN   TestGetStagedFiles
+    git_test.go:95: Staged files: []
+--- PASS: TestGetStagedFiles (0.01s)
+PASS
+coverage: 21.5% of statements
+ok  	github.com/hades/podx/git	0.022s	coverage: 21.5% of statements
+=== RUN   TestSaveGPGKeyPair
+--- PASS: TestSaveGPGKeyPair (0.00s)
+=== RUN   TestListGPGKeys
+--- PASS: TestListGPGKeys (0.00s)
+=== RUN   TestGenerateGPGNative
+--- PASS: TestGenerateGPGNative (1.84s)
+PASS
+coverage: 22.8% of statements
+ok  	github.com/hades/podx/keygen	(cached)	coverage: 22.8% of statements
+=== RUN   TestParseLine
+=== RUN   TestParseLine/empty
+=== RUN   TestParseLine/comment
+=== RUN   TestParseLine/simple
+=== RUN   TestParseLine/with_spaces
+=== RUN   TestParseLine/empty_value
+=== RUN   TestParseLine/encrypted
+=== RUN   TestParseLine/encrypted_age
+=== RUN   TestParseLine/no_equals
+--- PASS: TestParseLine (0.00s)
+    --- PASS: TestParseLine/empty (0.00s)
+    --- PASS: TestParseLine/comment (0.00s)
+    --- PASS: TestParseLine/simple (0.00s)
+    --- PASS: TestParseLine/with_spaces (0.00s)
+    --- PASS: TestParseLine/empty_value (0.00s)
+    --- PASS: TestParseLine/encrypted (0.00s)
+    --- PASS: TestParseLine/encrypted_age (0.00s)
+    --- PASS: TestParseLine/no_equals (0.00s)
+=== RUN   TestParseEnvFile
+--- PASS: TestParseEnvFile (0.00s)
+=== RUN   TestParseEnvFileNotFound
+--- PASS: TestParseEnvFileNotFound (0.00s)
+=== RUN   TestWriteEnvFile
+--- PASS: TestWriteEnvFile (0.00s)
+=== RUN   TestEncryptDecryptEnvValues
+--- PASS: TestEncryptDecryptEnvValues (0.00s)
+=== RUN   TestEncryptEnvValuesInvalidAlgo
+--- PASS: TestEncryptEnvValuesInvalidAlgo (0.00s)
+=== RUN   TestDecryptEnvValuesInvalidBase64
+--- PASS: TestDecryptEnvValuesInvalidBase64 (0.00s)
+PASS
+coverage: 91.0% of statements
+ok  	github.com/hades/podx/parser	0.008s	coverage: 91.0% of statements
+	github.com/hades/podx/project		coverage: 0.0% of statements
+=== RUN   TestCheckProject
+--- PASS: TestCheckProject (0.00s)
+=== RUN   TestCheckProjectPassed
+--- PASS: TestCheckProjectPassed (0.00s)
+=== RUN   TestCheckProjectBothExist
+--- PASS: TestCheckProjectBothExist (0.00s)
+=== RUN   TestCheckGitignore
+--- PASS: TestCheckGitignore (0.00s)
+=== RUN   TestFixGitignore
+--- PASS: TestFixGitignore (0.00s)
+=== RUN   TestCheckGitignoreNoFile
+--- PASS: TestCheckGitignoreNoFile (0.00s)
+=== RUN   TestFixGitignoreNoDuplicateHeader
+--- PASS: TestFixGitignoreNoDuplicateHeader (0.00s)
+=== RUN   TestInstallHook
+--- PASS: TestInstallHook (0.00s)
+=== RUN   TestUninstallHook
+--- PASS: TestUninstallHook (0.00s)
+=== RUN   TestHookStatus
+--- PASS: TestHookStatus (0.00s)
+=== RUN   TestPatternMatching
+=== RUN   TestPatternMatching/aws_access_key
+=== RUN   TestPatternMatching/aws_secret
+=== RUN   TestPatternMatching/private_key
+=== RUN   TestPatternMatching/password_assignment
+=== RUN   TestPatternMatching/password_single_quote
+=== RUN   TestPatternMatching/api_key
+=== RUN   TestPatternMatching/generic_secret
+=== RUN   TestPatternMatching/connection_string
+=== RUN   TestPatternMatching/postgres_url
+=== RUN   TestPatternMatching/safe_code
+=== RUN   TestPatternMatching/safe_comment
+=== RUN   TestPatternMatching/encrypted_value
+--- PASS: TestPatternMatching (0.00s)
+    --- PASS: TestPatternMatching/aws_access_key (0.00s)
+    --- PASS: TestPatternMatching/aws_secret (0.00s)
+    --- PASS: TestPatternMatching/private_key (0.00s)
+    --- PASS: TestPatternMatching/password_assignment (0.00s)
+    --- PASS: TestPatternMatching/password_single_quote (0.00s)
+    --- PASS: TestPatternMatching/api_key (0.00s)
+    --- PASS: TestPatternMatching/generic_secret (0.00s)
+    --- PASS: TestPatternMatching/connection_string (0.00s)
+    --- PASS: TestPatternMatching/postgres_url (0.00s)
+    --- PASS: TestPatternMatching/safe_code (0.00s)
+    --- PASS: TestPatternMatching/safe_comment (0.00s)
+    --- PASS: TestPatternMatching/encrypted_value (0.00s)
+=== RUN   TestFindSecrets
+--- PASS: TestFindSecrets (0.00s)
+=== RUN   TestScanFile
+--- PASS: TestScanFile (0.00s)
+=== RUN   TestScanFileBinary
+--- PASS: TestScanFileBinary (0.00s)
+=== RUN   TestShouldSkipPath
+=== RUN   TestShouldSkipPath/node_modules/pkg/index.js
+=== RUN   TestShouldSkipPath/.git/objects/abc
+=== RUN   TestShouldSkipPath/vendor/lib/file.go
+=== RUN   TestShouldSkipPath/.env.podx
+=== RUN   TestShouldSkipPath/secrets.podx
+=== RUN   TestShouldSkipPath/src/main.go
+=== RUN   TestShouldSkipPath/config/database.yml
+--- PASS: TestShouldSkipPath (0.00s)
+    --- PASS: TestShouldSkipPath/node_modules/pkg/index.js (0.00s)
+    --- PASS: TestShouldSkipPath/.git/objects/abc (0.00s)
+    --- PASS: TestShouldSkipPath/vendor/lib/file.go (0.00s)
+    --- PASS: TestShouldSkipPath/.env.podx (0.00s)
+    --- PASS: TestShouldSkipPath/secrets.podx (0.00s)
+    --- PASS: TestShouldSkipPath/src/main.go (0.00s)
+    --- PASS: TestShouldSkipPath/config/database.yml (0.00s)
+=== RUN   TestScanDirectory
+--- PASS: TestScanDirectory (0.00s)
+PASS
+coverage: 60.3% of statements
+ok  	github.com/hades/podx/security	0.016s	coverage: 60.3% of statements
+=== RUN   TestCommandsHasGPGKeygen
+--- PASS: TestCommandsHasGPGKeygen (0.00s)
+=== RUN   TestCommandNeedsForm
+=== RUN   TestCommandNeedsForm/keygen-gpg
+=== RUN   TestCommandNeedsForm/keygen-age
+=== RUN   TestCommandNeedsForm/add-recipient
+=== RUN   TestCommandNeedsForm/encrypt
+=== RUN   TestCommandNeedsForm/decrypt
+=== RUN   TestCommandNeedsForm/env-encrypt
+=== RUN   TestCommandNeedsForm/env-decrypt
+=== RUN   TestCommandNeedsForm/sync
+=== RUN   TestCommandNeedsForm/init
+=== RUN   TestCommandNeedsForm/status
+--- PASS: TestCommandNeedsForm (0.00s)
+    --- PASS: TestCommandNeedsForm/keygen-gpg (0.00s)
+    --- PASS: TestCommandNeedsForm/keygen-age (0.00s)
+    --- PASS: TestCommandNeedsForm/add-recipient (0.00s)
+    --- PASS: TestCommandNeedsForm/encrypt (0.00s)
+    --- PASS: TestCommandNeedsForm/decrypt (0.00s)
+    --- PASS: TestCommandNeedsForm/env-encrypt (0.00s)
+    --- PASS: TestCommandNeedsForm/env-decrypt (0.00s)
+    --- PASS: TestCommandNeedsForm/sync (0.00s)
+    --- PASS: TestCommandNeedsForm/init (0.00s)
+    --- PASS: TestCommandNeedsForm/status (0.00s)
+=== RUN   TestDetectGPGEncryption
+=== RUN   TestDetectGPGEncryption/GPG_armored_message
+=== RUN   TestDetectGPGEncryption/Non-GPG_encrypted_file
+=== RUN   TestDetectGPGEncryption/Plain_text_file
+=== RUN   TestDetectGPGEncryption/Empty_file
+--- PASS: TestDetectGPGEncryption (0.00s)
+    --- PASS: TestDetectGPGEncryption/GPG_armored_message (0.00s)
+    --- PASS: TestDetectGPGEncryption/Non-GPG_encrypted_file (0.00s)
+    --- PASS: TestDetectGPGEncryption/Plain_text_file (0.00s)
+    --- PASS: TestDetectGPGEncryption/Empty_file (0.00s)
+=== RUN   TestDetectGPGEncryption_NonExistentFile
+--- PASS: TestDetectGPGEncryption_NonExistentFile (0.00s)
+=== RUN   TestShowDecrypt_GPGAutoDetection
+--- PASS: TestShowDecrypt_GPGAutoDetection (0.00s)
+=== RUN   TestShowDecrypt_NonGPGFile
+--- PASS: TestShowDecrypt_NonGPGFile (0.00s)
+=== RUN   TestEncryptMethodConstants
+=== RUN   TestEncryptMethodConstants/MethodPassword_should_be_0
+=== RUN   TestEncryptMethodConstants/MethodAgeKey_should_be_1
+=== RUN   TestEncryptMethodConstants/MethodGPG_should_be_2
+--- PASS: TestEncryptMethodConstants (0.00s)
+    --- PASS: TestEncryptMethodConstants/MethodPassword_should_be_0 (0.00s)
+    --- PASS: TestEncryptMethodConstants/MethodAgeKey_should_be_1 (0.00s)
+    --- PASS: TestEncryptMethodConstants/MethodGPG_should_be_2 (0.00s)
+=== RUN   TestEncryptDialogMethodSelection
+--- PASS: TestEncryptDialogMethodSelection (0.00s)
+=== RUN   TestEncryptDialogGPGRecipientInput
+--- PASS: TestEncryptDialogGPGRecipientInput (0.00s)
+=== RUN   TestEncryptDialogGPGEncryptionFlow
+--- PASS: TestEncryptDialogGPGEncryptionFlow (0.00s)
+=== RUN   TestCreateFormForGPGKeygen
+--- PASS: TestCreateFormForGPGKeygen (0.00s)
+=== RUN   TestBuildCommandArgsForGPGKeygen
+--- PASS: TestBuildCommandArgsForGPGKeygen (0.00s)
+=== RUN   TestCreateFormForAllCommands
+=== RUN   TestCreateFormForAllCommands/add-recipient
+=== RUN   TestCreateFormForAllCommands/sync
+=== RUN   TestCreateFormForAllCommands/encrypt
+=== RUN   TestCreateFormForAllCommands/decrypt
+=== RUN   TestCreateFormForAllCommands/env-encrypt
+=== RUN   TestCreateFormForAllCommands/env-decrypt
+=== RUN   TestCreateFormForAllCommands/keygen-gpg
+--- PASS: TestCreateFormForAllCommands (0.00s)
+    --- PASS: TestCreateFormForAllCommands/add-recipient (0.00s)
+    --- PASS: TestCreateFormForAllCommands/sync (0.00s)
+    --- PASS: TestCreateFormForAllCommands/encrypt (0.00s)
+    --- PASS: TestCreateFormForAllCommands/decrypt (0.00s)
+    --- PASS: TestCreateFormForAllCommands/env-encrypt (0.00s)
+    --- PASS: TestCreateFormForAllCommands/env-decrypt (0.00s)
+    --- PASS: TestCreateFormForAllCommands/keygen-gpg (0.00s)
+=== RUN   TestFormValidation
+=== RUN   TestFormValidation/valid_add-recipient
+=== RUN   TestFormValidation/invalid_add-recipient_-_bad_key
+--- PASS: TestFormValidation (0.00s)
+    --- PASS: TestFormValidation/valid_add-recipient (0.00s)
+    --- PASS: TestFormValidation/invalid_add-recipient_-_bad_key (0.00s)
+PASS
+coverage: 2.7% of statements
+ok  	github.com/hades/podx/tui	0.470s	coverage: 2.7% of statements
+	github.com/hades/podx/updater		coverage: 0.0% of statements
+FAIL

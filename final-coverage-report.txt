@@ -1,0 +1,10 @@
+ok  	github.com/hades/podx	19.591s	coverage: 0.0% of statements
+ok  	github.com/hades/podx/crypto	33.962s	coverage: 54.4% of statements
+ok  	github.com/hades/podx/docs	0.012s	coverage: [no statements]
+ok  	github.com/hades/podx/git	0.026s	coverage: 21.5% of statements
+ok  	github.com/hades/podx/keygen	3.101s	coverage: 22.8% of statements
+ok  	github.com/hades/podx/parser	0.007s	coverage: 91.0% of statements
+	github.com/hades/podx/project		coverage: 0.0% of statements
+ok  	github.com/hades/podx/security	0.012s	coverage: 60.3% of statements
+ok  	github.com/hades/podx/tui	0.512s	coverage: 2.7% of statements
+	github.com/hades/podx/updater		coverage: 0.0% of statements
