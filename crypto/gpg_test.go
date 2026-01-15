@@ -450,3 +450,89 @@ func TestGPGEncryptMultipleRecipientsNative(t *testing.T) {
 		})
 	}
 }
+
+func TestGPGDecryptTamperedDataNative(t *testing.T) {
+	// Generate test key
+	_, privateKey, publicKey, err := GenerateGPGKeyNative("Test User", "test@podx.local", "")
+	if err != nil {
+		t.Fatalf("key generation failed: %v", err)
+	}
+
+	plaintext := []byte("secret data")
+
+	// Encrypt the data
+	ciphertext, err := GPGEncryptNative(plaintext, publicKey)
+	if err != nil {
+		t.Fatalf("encrypt failed: %v", err)
+	}
+
+	// Tamper with the ciphertext by modifying the middle of the message
+	// Find the message body (after the headers, before the footer)
+	tampered := make([]byte, len(ciphertext))
+	copy(tampered, ciphertext)
+
+	// Change a byte in the middle of the ciphertext
+	middle := len(tampered) / 2
+	if middle < len(tampered) {
+		tampered[middle] ^= 0xFF // Flip all bits
+	}
+
+	// Decryption should fail
+	_, err = GPGDecryptNative(tampered, privateKey, "")
+	if err == nil {
+		t.Error("expected error for tampered ciphertext")
+	}
+}
+
+func TestGPGDecryptInvalidDataNative(t *testing.T) {
+	// Generate test key
+	_, privateKey, _, err := GenerateGPGKeyNative("Test User", "test@podx.local", "")
+	if err != nil {
+		t.Fatalf("key generation failed: %v", err)
+	}
+
+	tests := []struct {
+		name       string
+		ciphertext []byte
+	}{
+		{"empty", []byte{}},
+		{"invalid", []byte("not a valid pgp message")},
+		{"malformed_armor", []byte("-----BEGIN PGP MESSAGE-----\ninvalid\n-----END PGP MESSAGE-----")},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := GPGDecryptNative(tt.ciphertext, privateKey, "")
+			if err == nil {
+				t.Error("expected error for invalid ciphertext")
+			}
+		})
+	}
+}
+
+func TestGPGDecryptWrongKeyNative(t *testing.T) {
+	// Generate two different keys
+	_, _, publicKey1, err := GenerateGPGKeyNative("User 1", "user1@podx.local", "")
+	if err != nil {
+		t.Fatalf("key 1 generation failed: %v", err)
+	}
+
+	_, privateKey2, _, err := GenerateGPGKeyNative("User 2", "user2@podx.local", "")
+	if err != nil {
+		t.Fatalf("key 2 generation failed: %v", err)
+	}
+
+	plaintext := []byte("secret data")
+
+	// Encrypt with key 1
+	ciphertext, err := GPGEncryptNative(plaintext, publicKey1)
+	if err != nil {
+		t.Fatalf("encrypt failed: %v", err)
+	}
+
+	// Try to decrypt with key 2 (wrong key)
+	_, err = GPGDecryptNative(ciphertext, privateKey2, "")
+	if err == nil {
+		t.Error("expected error when decrypting with wrong key")
+	}
+}
