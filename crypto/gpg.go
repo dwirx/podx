@@ -1,3 +1,69 @@
+// Package crypto provides encryption implementations for PODX.
+//
+// GPG/PGP Encryption:
+//
+// This package provides both native Go PGP implementation (using gopenpgp)
+// and shell-based GPG fallback for compatibility.
+//
+// Key Generation:
+//
+//	// Generate a new PGP key pair (native implementation)
+//	keyID, privateKey, publicKey, err := GenerateGPGKeyNative("Alice", "alice@example.com", "")
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//
+//	// Or use the simple wrapper (returns only keyID)
+//	keyID, err := GenerateGPGKey("Alice", "alice@example.com", "")
+//
+// Encryption (Auto-detect):
+//
+//	// Encrypt with armored public key (uses native)
+//	ciphertext, err := GPGEncrypt(plaintext, publicKey)
+//
+//	// Encrypt with recipient email/ID (uses shell GPG)
+//	ciphertext, err := GPGEncrypt(plaintext, "alice@example.com")
+//
+// Native Encryption:
+//
+//	// Single recipient
+//	ciphertext, err := GPGEncryptNative(plaintext, publicKeyArmored)
+//
+//	// Multiple recipients
+//	publicKeys := []string{publicKey1, publicKey2}
+//	ciphertext, err := GPGEncryptMultipleNative(plaintext, publicKeys)
+//
+// Decryption:
+//
+//	// Decrypt with shell GPG (using local keyring)
+//	plaintext, err := GPGDecrypt(ciphertext)
+//
+//	// Decrypt with native implementation (provided private key)
+//	plaintext, err := GPGDecryptNative(ciphertext, privateKeyArmored, "passphrase")
+//
+//	// Auto-select based on whether private key is provided
+//	plaintext, err := GPGDecryptWithKey(ciphertext, privateKeyArmored, "passphrase")
+//
+// Password Protection:
+//
+//	// Generate password-protected key
+//	keyID, privateKey, publicKey, err := GenerateGPGKeyNative("Alice", "alice@example.com", "my-secret")
+//
+//	// Decrypt requires passphrase
+//	plaintext, err := GPGDecryptNative(ciphertext, privateKey, "my-secret")
+//
+// Migration from Shell GPG:
+//
+// The native implementation is used automatically when:
+// - GPGEncrypt receives an armored public key (-----BEGIN PGP PUBLIC KEY BLOCK-----)
+// - GPGDecryptWithKey receives a non-empty privateKey parameter
+// - GenerateGPGKey is called (wraps GenerateGPGKeyNative)
+//
+// Shell GPG fallback is used when:
+// - GPGEncrypt receives a recipient ID (email or key ID)
+// - GPGDecrypt is called (uses local GPG keyring)
+// - GPGDecryptWithKey receives an empty privateKey parameter
+//
 package crypto
 
 import (
