@@ -8,8 +8,22 @@ import (
 	"github.com/ProtonMail/gopenpgp/v2/crypto"
 )
 
-// GPGEncrypt mengenkripsi plaintext dengan GPG menggunakan recipient ID (email atau key ID)
+// GPGEncrypt encrypts plaintext with GPG using recipient ID (email or key ID)
+// or armored public key. Automatically detects armored keys and uses native
+// implementation, otherwise falls back to shell GPG.
 func GPGEncrypt(plaintext []byte, recipient string) ([]byte, error) {
+	// Detect if recipient is an armored public key
+	if bytes.Contains([]byte(recipient), []byte("-----BEGIN PGP PUBLIC KEY BLOCK-----")) {
+		// Use native implementation for armored public keys
+		return GPGEncryptNative(plaintext, recipient)
+	}
+
+	// Fall back to shell GPG for recipient IDs (email/key ID)
+	return gpgEncryptShell(plaintext, recipient)
+}
+
+// gpgEncryptShell encrypts using external GPG binary (legacy implementation)
+func gpgEncryptShell(plaintext []byte, recipient string) ([]byte, error) {
 	cmd := exec.Command("gpg", "--encrypt", "--armor", "--recipient", recipient, "--batch", "--yes")
 	cmd.Stdin = bytes.NewReader(plaintext)
 
@@ -24,8 +38,25 @@ func GPGEncrypt(plaintext []byte, recipient string) ([]byte, error) {
 	return stdout.Bytes(), nil
 }
 
-// GPGDecrypt mendekripsi ciphertext dengan GPG (menggunakan keyring lokal)
+// GPGDecrypt decrypts ciphertext with GPG using local keyring (shell GPG).
+// For native decryption with a provided private key, use GPGDecryptWithKey.
 func GPGDecrypt(ciphertext []byte) ([]byte, error) {
+	return gpgDecryptShell(ciphertext)
+}
+
+// GPGDecryptWithKey decrypts ciphertext using either native implementation
+// (if privateKey provided) or shell GPG (if privateKey is empty).
+func GPGDecryptWithKey(ciphertext []byte, privateKey string, passphrase string) ([]byte, error) {
+	if privateKey != "" {
+		// Use native implementation when private key is provided
+		return GPGDecryptNative(ciphertext, privateKey, passphrase)
+	}
+	// Fall back to shell GPG
+	return gpgDecryptShell(ciphertext)
+}
+
+// gpgDecryptShell decrypts using external GPG binary (legacy implementation)
+func gpgDecryptShell(ciphertext []byte) ([]byte, error) {
 	cmd := exec.Command("gpg", "--decrypt", "--batch", "--yes")
 	cmd.Stdin = bytes.NewReader(ciphertext)
 
@@ -40,8 +71,20 @@ func GPGDecrypt(ciphertext []byte) ([]byte, error) {
 	return stdout.Bytes(), nil
 }
 
-// GenerateGPGKey generates a new GPG key pair
+// GenerateGPGKey generates a new GPG key pair using native implementation.
+// Returns the key ID (email). For full key material (private/public keys),
+// use GenerateGPGKeyNative directly.
 func GenerateGPGKey(name, email, passphrase string) (string, error) {
+	// Use native implementation
+	keyID, _, _, err := GenerateGPGKeyNative(name, email, passphrase)
+	if err != nil {
+		return "", err
+	}
+	return keyID, nil
+}
+
+// generateGPGKeyShell generates a GPG key using external GPG binary (legacy implementation)
+func generateGPGKeyShell(name, email, passphrase string) (string, error) {
 	keyParams := fmt.Sprintf(`%%no-protection
 Key-Type: RSA
 Key-Length: 4096
