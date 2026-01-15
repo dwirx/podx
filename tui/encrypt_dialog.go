@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -193,6 +194,25 @@ func (m *EncryptDialogModel) ShowDecrypt(files []FileInfo, proj *project.Project
 		m.outputPath = strings.TrimSuffix(files[0].Path, ".podx")
 	} else {
 		m.outputPath = fmt.Sprintf("%d files → original names", len(files))
+	}
+
+	// Auto-detect GPG encryption and route directly to GPG decryption
+	if len(files) > 0 {
+		// Check if any file is GPG encrypted
+		hasGPG := false
+		for _, file := range files {
+			if detectGPGEncryption(file.Path) {
+				hasGPG = true
+				break
+			}
+		}
+
+		// If GPG files detected, skip method selection and go directly to processing
+		if hasGPG {
+			m.method = MethodGPG
+			m.state = StateProcessing
+			return m.doDecryptGPG()
+		}
 	}
 
 	return nil
@@ -1127,6 +1147,15 @@ func (m EncryptDialogModel) doDecryptGPG() tea.Cmd {
 			files:   successCount,
 		}
 	}
+}
+
+// detectGPGEncryption checks if a file is GPG-encrypted by looking for the PGP armored header
+func detectGPGEncryption(filePath string) bool {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return false
+	}
+	return bytes.HasPrefix(data, []byte("-----BEGIN PGP MESSAGE-----"))
 }
 
 // View renders the dialog
