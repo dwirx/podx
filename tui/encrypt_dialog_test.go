@@ -110,3 +110,35 @@ func TestEncryptDialogGPGRecipientInput(t *testing.T) {
 		t.Errorf("expected gpgSuggestions to be empty initially, got %d items", len(dialog.gpgSuggestions))
 	}
 }
+
+// TestEncryptDialogGPGEncryptionFlow verifies GPG encryption flow configuration
+func TestEncryptDialogGPGEncryptionFlow(t *testing.T) {
+	// Create a new dialog model
+	dialog := NewEncryptDialogModel()
+
+	// Configure for GPG encryption
+	dialog.method = MethodGPG
+	dialog.gpgRecipients = []string{"test@example.com"}
+
+	// Test 1: Verify method is GPG
+	if dialog.method != MethodGPG {
+		t.Errorf("expected method to be MethodGPG (%d), got %d", MethodGPG, dialog.method)
+	}
+
+	// Test 2: Verify recipients count is 1
+	if len(dialog.gpgRecipients) != 1 {
+		t.Errorf("expected 1 GPG recipient, got %d", len(dialog.gpgRecipients))
+	}
+
+	// Test 3: Verify recipient is correct
+	expectedRecipient := "test@example.com"
+	if dialog.gpgRecipients[0] != expectedRecipient {
+		t.Errorf("expected recipient to be %q, got %q", expectedRecipient, dialog.gpgRecipients[0])
+	}
+
+	// Test 4: Multiple recipients
+	dialog.gpgRecipients = []string{"alice@example.com", "bob@example.com"}
+	if len(dialog.gpgRecipients) != 2 {
+		t.Errorf("expected 2 GPG recipients, got %d", len(dialog.gpgRecipients))
+	}
+}

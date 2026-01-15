@@ -1004,6 +1004,131 @@ func (m EncryptDialogModel) doGenerateKey() tea.Cmd {
 	}
 }
 
+// doEncryptGPG encrypts files with GPG native encryption
+func (m EncryptDialogModel) doEncryptGPG() tea.Cmd {
+	return func() tea.Msg {
+		// Validate recipients
+		if len(m.gpgRecipients) == 0 {
+			return encryptCompleteMsg{
+				success: false,
+				message: "No GPG recipients selected",
+			}
+		}
+
+		successCount := 0
+		var lastErr error
+		var processedFiles []string
+
+		for _, file := range m.files {
+			if file.IsDir || file.Name == ".." || file.IsEncrypted {
+				continue
+			}
+
+			// Read file content
+			plaintext, err := os.ReadFile(file.Path)
+			if err != nil {
+				lastErr = fmt.Errorf("failed to read %s: %v", file.Name, err)
+				continue
+			}
+
+			// Encrypt with GPG for multiple recipients
+			ciphertext, err := crypto.GPGEncryptMultipleNative(plaintext, m.gpgRecipients)
+			if err != nil {
+				lastErr = fmt.Errorf("GPG encryption failed for %s: %w", file.Name, err)
+				continue
+			}
+
+			// Write encrypted file
+			outPath := file.Path + ".podx"
+			if err := os.WriteFile(outPath, ciphertext, 0600); err != nil {
+				lastErr = fmt.Errorf("failed to write encrypted file %s: %w", file.Name+".podx", err)
+				continue
+			}
+
+			// Delete original file after successful encryption
+			if err := os.Remove(file.Path); err != nil {
+				// Non-fatal: encryption succeeded but cleanup failed
+				lastErr = fmt.Errorf("encrypted but failed to remove original %s: %v", file.Name, err)
+			}
+
+			processedFiles = append(processedFiles, file.Name+" → "+file.Name+".podx")
+			successCount++
+		}
+
+		if successCount == 0 && lastErr != nil {
+			return encryptCompleteMsg{
+				success: false,
+				message: fmt.Sprintf("Encryption failed: %v", lastErr),
+			}
+		}
+
+		return encryptCompleteMsg{
+			success: true,
+			message: fmt.Sprintf("Encrypted %d file(s) with GPG for %d recipient(s)", successCount, len(m.gpgRecipients)),
+			files:   successCount,
+		}
+	}
+}
+
+// doDecryptGPG decrypts files with GPG (using local keyring)
+func (m EncryptDialogModel) doDecryptGPG() tea.Cmd {
+	return func() tea.Msg {
+		successCount := 0
+		var lastErr error
+		var processedFiles []string
+
+		for _, file := range m.files {
+			if file.IsDir || file.Name == ".." || !file.IsEncrypted {
+				continue
+			}
+
+			// Read encrypted file
+			content, err := os.ReadFile(file.Path)
+			if err != nil {
+				lastErr = fmt.Errorf("failed to read %s: %v", file.Name, err)
+				continue
+			}
+
+			// Decrypt with GPG (uses local keyring)
+			plaintext, err := crypto.GPGDecrypt(content)
+			if err != nil {
+				lastErr = fmt.Errorf("failed to decrypt %s: %w", file.Name, err)
+				continue
+			}
+
+			// Write decrypted file (remove .podx extension)
+			outPath := strings.TrimSuffix(file.Path, ".podx")
+			outName := strings.TrimSuffix(file.Name, ".podx")
+			if err := os.WriteFile(outPath, plaintext, 0644); err != nil {
+				lastErr = fmt.Errorf("failed to write %s: %v", outName, err)
+				continue
+			}
+
+			// Remove encrypted file after successful decryption
+			if err := os.Remove(file.Path); err != nil {
+				// Non-fatal: decryption succeeded but cleanup failed
+				lastErr = fmt.Errorf("decrypted but failed to remove encrypted file: %v", err)
+			}
+
+			processedFiles = append(processedFiles, file.Name+" → "+outName)
+			successCount++
+		}
+
+		if successCount == 0 && lastErr != nil {
+			return encryptCompleteMsg{
+				success: false,
+				message: fmt.Sprintf("Decryption failed: %v", lastErr),
+			}
+		}
+
+		return encryptCompleteMsg{
+			success: true,
+			message: fmt.Sprintf("Decrypted %d file(s) with GPG", successCount),
+			files:   successCount,
+		}
+	}
+}
+
 // View renders the dialog
 func (m EncryptDialogModel) View() string {
 	if !m.visible {
