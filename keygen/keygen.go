@@ -114,21 +114,25 @@ func GenerateAgeWithName(name string) (*KeygenResult, error) {
 	}, nil
 }
 
-// GenerateGPG generates a new GPG key pair
+// GenerateGPG generates a new GPG key pair using native implementation
 func GenerateGPG(name, email string) (*KeygenResult, error) {
-	if !crypto.CheckGPGInstalled() {
-		return nil, fmt.Errorf("gpg is not installed. Please install GPG first")
+	// Use native GPG implementation (no shell dependency)
+	keyID, privateKey, publicKey, err := crypto.GenerateGPGKeyNative(name, email, "")
+	if err != nil {
+		return nil, fmt.Errorf("GPG key generation failed: %w", err)
 	}
 
-	keyID, err := crypto.GenerateGPGKey(name, email, "")
-	if err != nil {
-		return nil, err
+	// Save keys to config directory using new SaveGPGKeyPair function
+	if err := SaveGPGKeyPair(keyID, publicKey, privateKey, name, email); err != nil {
+		return nil, fmt.Errorf("failed to save GPG keys: %w", err)
 	}
 
 	return &KeygenResult{
-		Backend:   "gpg",
-		PublicKey: keyID,
-		Email:     email,
+		Backend:    "gpg",
+		PublicKey:  publicKey,
+		PrivateKey: privateKey,
+		Email:      email,
+		Name:       name,
 	}, nil
 }
 
