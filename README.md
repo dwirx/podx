@@ -16,9 +16,9 @@
   <a href="#features">Features</a> •
   <a href="#installation">Installation</a> •
   <a href="#quick-start">Quick Start</a> •
-  <a href="#interactive-tui">TUI</a> •
-  <a href="#commands">Commands</a> •
-  <a href="#security">Security</a>
+  <a href="#encryption-methods">Encryption</a> •
+  <a href="#tui-terminal-user-interface">TUI</a> •
+  <a href="#performance">Performance</a>
 </p>
 
 ---
@@ -26,31 +26,31 @@
 ## Features
 
 ### Encryption
-- **Age & GPG Encryption** — Modern X25519 asymmetric or traditional GPG
-- **Password Encryption** — AES-256-GCM with Argon2id key derivation
-- **XChaCha20-Poly1305** — Extended nonce ChaCha20 for safer random nonces
-- **Paranoid Mode** — XChaCha20 + Serpent cascade encryption with HMAC-SHA3
+- **Age Encryption** — Modern X25519 asymmetric encryption (default)
+- **Native Go GPG** — Pure Go OpenPGP implementation (no external GPG binary required)
+- **AES-256-GCM** — Hardware-accelerated symmetric encryption
+- **ChaCha20-Poly1305** — High-performance symmetric encryption (fastest)
+- **XChaCha20-Poly1305** — Extended nonce for safer random nonces
+- **Paranoid Mode** — XChaCha20 + Serpent cascade encryption
 - **Format-Preserving** — `.env` files stay readable (`KEY=ENC[...]`)
-- **Streaming Encryption** — Automatic chunked encryption for files >100MB
-- **Compression** — zstd compression before encryption (auto-skip for already compressed files)
-- **Memory Protection** — Secure wiping of sensitive data from memory
 
 ### Team Collaboration
 - **Multi-Recipient** — Encrypt to multiple team members
 - **Project Workspaces** — Per-project `.podx.yaml` configuration
 - **Git-Friendly** — Commit encrypted files safely
-- **Shamir Secret Sharing** — Split secrets into shares with threshold recovery (2-of-3, 3-of-5, etc.)
-- **QR Code Export** — Export shares as QR codes for secure distribution
+- **Shamir Secret Sharing** — Split secrets into shares (k-of-n)
+- **QR Code Export** — Share secrets via QR codes
 
 ### Security
 - **Pre-commit Hook** — Block commits with exposed secrets
 - **Secret Scanning** — Detect API keys, passwords, tokens
-- **Gitignore Validation** — Ensure sensitive files are excluded
+- **Memory Protection** — Secure wiping of sensitive data
+- **Compression** — Automatic zstd compression before encryption
 
 ### User Experience
 - **Interactive TUI** — Beautiful terminal interface with file browser
-- **Self-Update** — Built-in update with rollback capability
 - **Cross-Platform** — Linux, macOS, Windows (AMD64 & ARM64)
+- **Self-Update** — Built-in update with rollback capability
 
 ---
 
@@ -61,18 +61,9 @@
 ```bash
 # Install latest stable version
 curl -fsSL https://raw.githubusercontent.com/dwirx/podx/main/install.sh | bash
-
-# Install beta version
-curl -fsSL https://raw.githubusercontent.com/dwirx/podx/main/install.sh | bash -s -- --beta
-
-# Install specific version
-curl -fsSL https://raw.githubusercontent.com/dwirx/podx/main/install.sh | bash -s -- --version v1.0.2
-
-# Install to custom directory
-curl -fsSL https://raw.githubusercontent.com/dwirx/podx/main/install.sh | bash -s -- --dir ~/.local/bin
 ```
 
-### Windows (PowerShell as Administrator)
+### Windows (PowerShell)
 
 ```powershell
 # Install latest stable version
@@ -82,565 +73,200 @@ iwr -useb https://raw.githubusercontent.com/dwirx/podx/main/install.ps1 | iex
 ### Build from Source
 
 ```bash
-# Clone repository
 git clone https://github.com/dwirx/podx
 cd podx
-
-# Build
 go build -o podx .
-
-# Install
-sudo mv podx /usr/local/bin/
-
-# Verify
-podx version
-```
-
-### Supported Platforms
-
-| Platform | Architecture | Binary |
-|----------|--------------|--------|
-| Linux | AMD64 | `podx-linux-amd64` |
-| Linux | ARM64 | `podx-linux-arm64` |
-| Linux | ARM (32-bit) | `podx-linux-arm` |
-| macOS | Intel | `podx-darwin-amd64` |
-| macOS | Apple Silicon | `podx-darwin-arm64` |
-| Windows | AMD64 | `podx-windows-amd64.exe` |
-| Windows | ARM64 | `podx-windows-arm64.exe` |
-
-### Uninstall
-
-```bash
-# Linux/macOS
-curl -fsSL https://raw.githubusercontent.com/dwirx/podx/main/uninstall.sh | bash
-
-# Windows (PowerShell)
-iwr -useb https://raw.githubusercontent.com/dwirx/podx/main/uninstall.ps1 | iex
 ```
 
 ---
 
 ## Quick Start
 
-### 1. Generate Encryption Key
-
+### 1. Generate Key
 ```bash
+# Generate Age key (recommended)
 podx keygen -t age
-```
 
-Output:
-```
-Age Key Pair Generated
-
-Public Key:  age1xc2ttxdm60507q6wqqmsk695arqxn4x3zpq43dkstwxhaxkccaxspz47na
-Private Key: AGE-SECRET-KEY-1QQQQQQQQ...
-
-Keys saved to:
-  ~/.config/podx/age-keys.txt
-  ~/.config/podx/age-recipients/default.txt
+# Or generate GPG key (native implementation)
+podx keygen -t gpg -n "Alice" -e "alice@example.com"
 ```
 
 ### 2. Initialize Project
-
 ```bash
 cd your-project
 podx init
 ```
 
-Creates `.podx.yaml`:
-```yaml
-version: 1
-backend: age
-recipients:
-  - name: Owner
-    key: age1xc2ttxdm60507q6wqqmsk695arqxn4x3zpq43dkstwxhaxkccaxspz47na
-secrets:
-  - .env
-```
-
-### 3. Create Secrets
-
+### 3. Create & Encrypt Secrets
 ```bash
 echo "API_KEY=secret123" > .env
-echo "DB_PASSWORD=mypassword" >> .env
-```
-
-### 4. Encrypt Secrets
-
-```bash
 podx encrypt-all
 ```
 
-**Before:**
-```
-.env              # Plain text (will be deleted)
-```
-
-**After:**
-```
-.env.podx         # Encrypted (safe to commit)
-```
-
-**Encrypted .env.podx format:**
-```env
-API_KEY=ENC[age:YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+...]
-DB_PASSWORD=ENC[age:YWdlLWVuY3J5cHRpb24ub3JnL3YxCi...]
-```
-
-### 5. Commit to Git
-
+### 4. Commit to Git
 ```bash
 git add .podx.yaml .env.podx
 git commit -m "Add encrypted secrets"
-git push
-```
-
-### 6. Team Member Decrypts
-
-```bash
-git clone <repo>
-cd <repo>
-podx decrypt-all
-# .env is restored!
 ```
 
 ---
 
-## Interactive TUI
+## Encryption Methods
 
-Launch the interactive terminal interface:
+PODX supports 5 different encryption methods, optimized for different use cases.
 
-```bash
-podx
-```
+### Symmetric Encryption
+Used for file encryption with passwords.
+
+1. **ChaCha20-Poly1305** (Recommended)
+   - **Performance:** ~1,000,000 ops/sec
+   - **Memory:** 64 B/op
+   - **Best for:** Most use cases, systems without AES hardware acceleration
+   - **Security:** 256-bit key, 96-bit nonce, Poly1305 MAC
+
+2. **XChaCha20-Poly1305**
+   - **Performance:** ~936,000 ops/sec
+   - **Memory:** 80 B/op
+   - **Best for:** Streaming large files, high-volume encryption
+   - **Security:** Extended 192-bit nonce eliminates random nonce collision risk
+
+3. **AES-256-GCM**
+   - **Performance:** ~683,000 ops/sec
+   - **Memory:** 1,312 B/op
+   - **Best for:** Systems with AES-NI instructions, compliance requirements
+   - **Security:** NIST standard, authenticated encryption
+
+### Asymmetric Encryption
+Used for sharing secrets with team members.
+
+#### Age X25519
+- **Status:** Default & Recommended
+- **Algorithm:** X25519 (Curve25519) + ChaCha20-Poly1305
+- **Performance:** ~3,384 ops/sec
+- **Key Format:** `age1...` (public), `AGE-SECRET-KEY-1...` (private)
+- **Pros:** Modern, simple, small keys, fast key generation
+
+#### GPG/PGP
+- **Implementation:** **Native Go GPG** (via `gopenpgp`)
+- **Algorithm:** RSA 4096-bit (default)
+- **Performance:** ~614 ops/sec
+- **Pros:** Wide compatibility, password-protected keys, enterprise standard
+- **Features:**
+  - **No external GPG binary required** - Uses pure Go implementation
+  - **Cross-platform** - Works identically on all OSs
+  - **OpenPGP Compatible** - RFC 4880 compliant
+  - **Auto-fallback** - Gracefully handles shell GPG if needed for specific operations
+
+---
+
+## Performance
+
+Benchmark results from `docs/encryption-test-report.md` (2026-01-15):
+
+### Encryption Speed (ops/sec)
+| Algorithm | Speed | Type | Note |
+|-----------|-------|------|------|
+| **ChaCha20-Poly1305** | 1,000,000 | Symmetric | ⚡ FASTEST |
+| **XChaCha20-Poly1305** | 936,196 | Symmetric | Extended Nonce |
+| **AES-256-GCM** | 683,055 | Symmetric | Hardware Accel |
+| **Age X25519** | 3,384 | Asymmetric | Modern |
+| **GPG Native** | 614 | Asymmetric | RSA 4096-bit |
+
+### Memory Usage (bytes/op)
+| Algorithm | Memory | Efficiency |
+|-----------|--------|------------|
+| **ChaCha20-Poly1305** | 64 B | ⭐ MOST EFFICIENT |
+| **XChaCha20-Poly1305** | 80 B | Excellent |
+| **AES-256-GCM** | 1,312 B | Good |
+| **Age X25519** | 152 KB | Standard |
+| **GPG Native** | 354 KB | RSA Overhead |
+
+---
+
+## TUI (Terminal User Interface)
+
+Launch the interactive interface with `podx`.
 
 ### Tabs
+- **Dashboard** `[*]` - Project overview, quick actions, key management
+- **Commands** `[>]` - Run any CLI command interactively
+- **Security** `[#]` - Run security checks (patterns, gitignore)
+- **Files** `[@]` - Browse, encrypt, and decrypt files
 
-| Tab | Icon | Description |
-|-----|------|-------------|
-| **Dashboard** | `[*]` | Project overview, encryption status, quick actions |
-| **Commands** | `[>]` | Interactive command menu |
-| **Security** | `[#]` | Live security check results |
-| **Files** | `[@]` | File browser with encryption capabilities |
+### Encryption Selection
+When encrypting a file (`e` key), you can now select:
+1. **Algorithm:** AES-GCM, ChaCha20, XChaCha20, or Paranoid
+2. **Method:** Password (Symmetric) or Key-based (Asymmetric)
 
-### Global Navigation
-
-| Key | Action |
-|-----|--------|
-| `Tab` | Next tab |
-| `Shift+Tab` | Previous tab |
-| `1` `2` `3` `4` | Jump to tab |
-| `r` | Refresh data |
-| `?` | Toggle help overlay |
-| `q` / `Esc` | Quit |
-
-### Dashboard Tab
-
-- **Project Info** — Path, backend, recipients, secret patterns
-- **Security Status** — Encryption check, gitignore validation, hook status
-- **Quick Actions:**
-  - Encrypt All — Encrypt all secrets in project
-  - Decrypt All — Decrypt all `.podx` files
-  - Run Check — Run security checks
-  - Install Hook — Install pre-commit hook
-  - Generate Key — Generate new Age key pair
-  - Manage Keys — Open key manager dialog
-  - Init Project — Initialize new project
-- **Update Notification** — Shows when new version available
-
-### Files Tab
-
-| Key | Action |
-|-----|--------|
-| `j` / `↓` | Move down |
-| `k` / `↑` | Move up |
-| `l` / `→` / `Enter` | Enter directory / Select |
-| `h` / `←` | Go to parent directory |
-| `Space` | Toggle file selection |
-| `a` | Select/deselect all |
-| `e` | Encrypt selected files |
-| `d` | Decrypt selected files |
-| `p` | Toggle preview panel |
-| `g` | Go to path |
-| `/` | Filter files |
-
-### Encryption Dialog
-
-When pressing `e` to encrypt, choose between:
-
-#### Password Encryption (AES-GCM)
-- AES-256-GCM symmetric encryption
-- Argon2id key derivation (memory-hard)
-- Requires password to decrypt
-- Best for: Personal files, password-based sharing
-
-#### Age Key Encryption
-- X25519 asymmetric encryption
-- Uses recipients from `.podx.yaml`
-- No password needed
-- Best for: Team collaboration via Git
+### Key Manager
+Access via Dashboard or `[G]` in Commands tab:
+- Generate Age or GPG keys
+- Import existing keys
+- Set default keys
+- Manage key names for easier identification
 
 ---
 
 ## Commands
 
-### Project Commands
-
+### Project & Files
 ```bash
-# Initialize project
-podx init
-
-# Add team member
-podx add-recipient -n "Alice" -k age1abc123...
-
-# Encrypt all secrets (deletes originals)
+# Encrypt/Decrypt project
 podx encrypt-all
-
-# Decrypt all secrets
 podx decrypt-all
 
-# Show project status
-podx status
-```
-
-### File Commands
-
-```bash
-# Encrypt single file with password (normal mode, AES-GCM)
-podx encrypt -i secret.txt -o secret.enc
-
-# Encrypt with XChaCha20
+# Encrypt single file (XChaCha20)
 podx encrypt -c xchacha20 -i secret.txt -o secret.enc
 
-# Encrypt with paranoid mode (XChaCha20 + Serpent cascade)
-podx encrypt -m paranoid -i secret.txt -o secret.enc
-
-# Encrypt with specific cipher
-podx encrypt -m normal -c xchacha20 -i secret.txt -o secret.enc
-
-# Decrypt file (auto-detects encryption format)
-podx decrypt -i secret.enc -o secret.txt
-
-# Encrypt .env file (format-preserving)
+# Encrypt .env (Format Preserving)
 podx env encrypt -i .env -o .env.podx
-
-# Decrypt .env file
-podx env decrypt -i .env.podx -o .env
 ```
-
-### Encryption Modes
-
-| Mode | Cipher | MAC | KDF | Use Case |
-|------|--------|-----|-----|----------|
-| `normal` | AES-GCM or XChaCha20 | BLAKE2b | Argon2id (4 passes, 256MB) | Standard security |
-| `paranoid` | XChaCha20 + Serpent | HMAC-SHA3-512 | Argon2id (8 passes, 512MB) | Maximum security |
 
 ### Key Management
-
 ```bash
-# Generate Age key pair
+# Generate Age key
 podx keygen -t age
 
-# Generate GPG key pair
-podx keygen -t gpg -n "Your Name" -e "email@example.com"
+# Generate GPG key (Native)
+podx keygen -t gpg -n "User" -e "user@example.com"
+
+# List keys (TUI)
+podx keys
 ```
 
-#### Key Manager (TUI)
-
-Access the Key Manager from Dashboard → Manage Keys, or press `[G]` in Commands tab:
-
-| Action | Key | Description |
-|--------|-----|-------------|
-| Set Default | `Enter`/`Space` | Set selected key as default for encryption |
-| Generate | `G` | Generate new key with custom name |
-| Import | `I` | Import existing private key with name |
-| Rename | `R` | Rename selected key |
-| Delete | `D` | Delete selected key (with confirmation) |
-
-**Key Naming:**
-- Give keys meaningful names like "John Doe", "Production Server", "Backup Key"
-- Names help identify team members and key purposes
-- Auto-generated names are used if left empty
-
-**Key File Location:**
-```
-~/.config/podx/
-├── age-keys.txt           # Private keys with metadata
-│   # name: John Doe
-│   # created: 2024-01-15T10:30:00Z
-│   # public key: age1abc...
-│   AGE-SECRET-KEY-1...
-└── age-recipients/
-    └── default.txt        # Default public key
-```
-
-### Security Commands
-
+### Security & Shamir
 ```bash
-# Run all security checks
+# Check for secrets
 podx check
 
-# Auto-fix gitignore issues
-podx check --fix
+# Split secret (3-of-5)
+podx shamir split -i key.txt -t 3 -n 5 -qr
 
-# Silent mode for CI/pre-commit
-podx check --pre-commit
-
-# Install pre-commit hook
-podx hook install
-
-# Check hook status
-podx hook status
-
-# Uninstall hook
-podx hook uninstall
+# Combine shares
+podx shamir combine -d ./shares -o key.txt
 ```
-
-### Update Commands
-
-```bash
-# Check current version
-podx version
-
-# Update to latest stable version
-podx update
-
-# Update to beta version
-podx update --beta
-
-# Rollback to previous version (after update)
-podx rollback
-```
-
-### Shamir Secret Sharing
-
-Split secrets into multiple shares with threshold recovery:
-
-```bash
-# Split a secret using preset (2-of-3)
-podx shamir split -i secret-key.txt -p 2-of-3 -o ./shares
-
-# Split with custom threshold (3-of-5) and generate QR codes
-podx shamir split -i secret-key.txt -t 3 -n 5 -o ./shares -qr
-
-# List available presets
-podx shamir presets
-
-# Combine shares from directory
-podx shamir combine -d ./shares -o recovered-key.txt
-
-# Combine specific share files
-podx shamir combine -f share1.json,share2.json,share3.json -o recovered-key.txt
-```
-
-#### Presets
-
-| Preset | Threshold | Total | Use Case |
-|--------|-----------|-------|----------|
-| `2-of-3` | 2 | 3 | Small team |
-| `3-of-5` | 3 | 5 | Medium team |
-| `4-of-7` | 4 | 7 | Large team |
-| `5-of-9` | 5 | 9 | Enterprise |
-
-#### Output Files
-
-When splitting, PODX creates:
-- `share-1-of-N_<id>.json` — Share files with checksums
-- `share-1-of-N_<id>.png` — QR code images (with `-qr` flag)
-
-Each share can be safely distributed to different team members or stored in separate locations.
 
 ---
 
 ## Security
 
-### Encryption Algorithms
+### Key Storage
+Keys are stored in `~/.config/podx/`:
+- `age-keys.txt`: Age private keys
+- `gpg-keys/`: GPG keyrings (native implementation)
+- `age-recipients/`: Public keys
 
-#### Symmetric (Password-based)
-
-| Algorithm | Key Size | Description |
-|-----------|----------|-------------|
-| `aes-gcm` | 256-bit | AES-GCM (default, hardware-accelerated on modern CPUs) |
-| `chacha20` | 256-bit | ChaCha20-Poly1305 (faster on ARM, no AES-NI) |
-
-#### Asymmetric (Key-based)
-
-| Backend | Algorithm | Description |
-|---------|-----------|-------------|
-| `age` | X25519 | Modern, simple, secure. Recommended. |
-| `gpg` | RSA/EdDSA | Traditional PGP. Wide compatibility. |
-
-### Key Derivation
-
-Password-based encryption uses **Argon2id** with secure parameters:
-- Memory: 64 MB
-- Iterations: 3
-- Parallelism: 4
-- Salt: 16 bytes (random)
-
-### Security Checks
-
-PODX scans for common secret patterns:
-
-| Pattern | Examples |
-|---------|----------|
-| AWS Keys | `AKIA...`, `aws_secret_access_key` |
-| API Keys | `api_key=...`, `apikey=...` |
-| Private Keys | `-----BEGIN RSA PRIVATE KEY-----` |
-| Passwords | `password=...`, `passwd=...` |
-| Tokens | `token=...`, `bearer ...` |
-| Connection Strings | `mongodb://...`, `postgres://...` |
-| JWT | `eyJ...` (base64 JSON) |
-
-### Pre-commit Hook
-
-The pre-commit hook prevents committing exposed secrets:
-
-```bash
-# Install
-podx hook install
-
-# What it checks:
-# 1. All secrets in .podx.yaml are encrypted
-# 2. .gitignore includes sensitive patterns
-# 3. No hardcoded secrets in staged files
-```
-
-When issues are detected, the commit is blocked with actionable fixes.
+### Security Features
+- **Authenticated Encryption:** All methods use AEAD (GCM, Poly1305)
+- **Argon2id KDF:** Password hashing with 64MB memory cost
+- **Secure Memory:** Sensitive data is wiped from memory after use
+- **Pre-commit Hook:** Prevents committing plaintext secrets
 
 ### Best Practices
-
-1. **Never commit `.env`** — Only commit `.env.podx`
-2. **Use Age over GPG** — Simpler, modern, fewer footguns
-3. **Install pre-commit hook** — Catch mistakes before push
-4. **Rotate keys periodically** — Generate new keys, re-encrypt
-5. **Audit recipients** — Remove ex-team members promptly
-
-### Advanced Crypto Features
-
-#### Memory Protection
-
-Sensitive data (passwords, keys, decrypted secrets) is securely wiped from memory after use:
-
-```go
-// SecureWipe zeros memory with compiler optimization prevention
-crypto.SecureWipe(sensitiveData)
-
-// SecureBuffer auto-wipes on Close()
-buf := crypto.NewSecureBuffer(32)
-defer buf.Wipe()
-
-// SecureString for password handling
-pass := crypto.NewSecureString(password)
-defer pass.Wipe()
-```
-
-#### Compression (zstd)
-
-Files are automatically compressed before encryption for smaller output:
-
-```go
-// Compression levels: Fast (1), Default (3), Better (7), Best (11)
-compressed, _ := crypto.Compress(data, crypto.CompressionDefault)
-
-// Auto-detect if compression is beneficial (skips PNG, JPEG, ZIP, etc.)
-if crypto.ShouldCompress(data) {
-    data, _ = crypto.Compress(data, crypto.CompressionDefault)
-}
-```
-
-#### BLAKE2b MAC
-
-Cryptographic message authentication using BLAKE2b-256:
-
-```go
-// Compute MAC
-mac, _ := crypto.ComputeBlake2bMAC(data, key)
-
-// Verify MAC
-valid, _ := crypto.VerifyBlake2bMAC(data, key, mac)
-```
-
----
-
-## Configuration
-
-### Key Storage
-
-```
-~/.config/podx/
-├── age-keys.txt           # Private keys (one per line)
-└── age-recipients/
-    └── default.txt        # Your public key
-```
-
-### Project Config (.podx.yaml)
-
-```yaml
-version: 1
-backend: age  # or "gpg"
-
-# Team members who can decrypt
-recipients:
-  - name: Owner
-    key: age1xc2ttxdm60507q6wqqmsk695arqxn4x3zpq43dkstwxhaxkccaxspz47na
-  - name: Alice
-    key: age1abc123...
-  - name: Bob
-    key: age1def456...
-
-# Files to encrypt (glob patterns supported)
-secrets:
-  - .env
-  - .env.production
-  - .env.staging
-  - config/secrets.yaml
-  - config/*.key
-```
-
-### Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `PODX_CONFIG_DIR` | Config directory | `~/.config/podx` |
-| `PODX_KEY_FILE` | Age private key file | `~/.config/podx/age-keys.txt` |
-
----
-
-## Self-Update
-
-PODX includes a built-in updater with automatic rollback:
-
-```bash
-# Check current version and available updates
-podx version
-
-# Update to latest stable
-podx update
-
-# Update to beta (pre-release)
-podx update --beta
-
-# If update causes issues, rollback
-podx rollback
-```
-
-### Update Process
-
-1. **Check** — Fetches latest release from GitHub
-2. **Download** — Downloads binary with progress indicator
-3. **Verify** — Tests downloaded binary works
-4. **Backup** — Saves current binary as `.bak`
-5. **Install** — Replaces current with new binary
-6. **Cleanup** — Removes backup on success
-
-If installation fails, the backup is automatically restored.
-
-### Permissions
-
-On Linux/macOS, if write permission is denied, PODX automatically requests elevated privileges via `sudo`.
-
-On Windows, run PowerShell as Administrator.
+1. **Never commit .env files** - Use `.env.podx`
+2. **Use Age for new projects** - It's faster and simpler
+3. **Use GPG for compatibility** - If you need to interface with existing PGP systems
+4. **Backup your keys** - If you lose your private key, data is unrecoverable
 
 ---
 
@@ -693,22 +319,6 @@ podx decrypt-all
 # .env is now available locally
 ```
 
-### Removing Team Members
-
-Edit `.podx.yaml` and remove the recipient, then re-encrypt:
-
-```bash
-# Edit .podx.yaml to remove the recipient
-vim .podx.yaml
-
-# Re-encrypt with remaining recipients
-podx decrypt-all
-podx encrypt-all
-git add .podx.yaml .env.podx
-git commit -m "Remove ex-team-member from recipients"
-git push
-```
-
 ---
 
 ## CI/CD Integration
@@ -740,33 +350,17 @@ jobs:
         run: ./deploy.sh
 ```
 
-### GitLab CI
-
-```yaml
-deploy:
-  image: golang:1.22
-  before_script:
-    - curl -fsSL https://raw.githubusercontent.com/dwirx/podx/main/install.sh | bash
-    - mkdir -p ~/.config/podx
-    - echo "$AGE_SECRET_KEY" > ~/.config/podx/age-keys.txt
-  script:
-    - podx decrypt-all
-    - ./deploy.sh
-```
-
 ---
 
 ## Troubleshooting
 
 ### "No project found"
-
 ```bash
 # Initialize project first
 podx init
 ```
 
 ### "No recipients configured"
-
 ```bash
 # Generate key first
 podx keygen -t age
@@ -776,13 +370,11 @@ podx init
 ```
 
 ### "Failed to decrypt: no identity matched"
-
 Your private key doesn't match any recipient. Either:
 1. You're not a recipient — ask project owner to add you
 2. Wrong key — check `~/.config/podx/age-keys.txt`
 
 ### "Permission denied" during update
-
 ```bash
 # Linux/macOS: Run with sudo
 sudo podx update
@@ -790,83 +382,26 @@ sudo podx update
 # Windows: Run PowerShell as Administrator
 ```
 
-### Update failed, need to rollback
-
-```bash
-podx rollback
-```
-
----
-
-## Development
-
-### Requirements
-
-- Go 1.22+
-- Git
-
-### Build
-
-```bash
-git clone https://github.com/dwirx/podx
-cd podx
-go build -o podx .
-```
-
-### Test
-
-```bash
-go test ./...
-```
-
-### Release
-
-Releases are automated via GitHub Actions:
-
-```bash
-# Create release tag
-git tag v1.0.0
-git push origin v1.0.0
-```
-
-Beta releases are triggered by pushing to the `testing` branch.
-
 ---
 
 ## Contributing
 
-Contributions are welcome! Please:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing`)
-5. Open a Pull Request
-
-### Code Style
-
-- Run `gofmt` before committing
-- Run `go vet ./...` to check for issues
-- Add tests for new features
-
----
+Contributions are welcome!
+1. Fork the repo
+2. Create feature branch
+3. Commit changes
+4. Push and create PR
 
 ## License
 
 MIT License - see [LICENSE](LICENSE) for details.
 
----
-
 ## Acknowledgments
 
-- [age](https://github.com/FiloSottile/age) — Modern encryption tool
-- [Bubble Tea](https://github.com/charmbracelet/bubbletea) — TUI framework
-- [Lip Gloss](https://github.com/charmbracelet/lipgloss) — Style definitions
-- [HashiCorp Vault Shamir](https://github.com/hashicorp/vault) — Shamir Secret Sharing implementation
-- [zstd](https://github.com/klauspost/compress) — Fast compression library
-- [go-qrcode](https://github.com/skip2/go-qrcode) — QR code generation
-
----
+- [age](https://github.com/FiloSottile/age)
+- [gopenpgp](https://github.com/ProtonMail/gopenpgp)
+- [bubbletea](https://github.com/charmbracelet/bubbletea)
+- [cobra](https://github.com/spf13/cobra)
 
 <p align="center">
   Made with <strong>Go</strong> by <a href="https://github.com/dwirx">dwirx</a>
