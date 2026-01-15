@@ -588,3 +588,54 @@ func TestGPGPasswordProtectedKeyNative(t *testing.T) {
 		})
 	}
 }
+
+// Benchmark GPG native operations
+
+func BenchmarkGPGEncryptNative(b *testing.B) {
+	// Setup: generate key
+	_, _, publicKey, err := GenerateGPGKeyNative("Benchmark User", "bench@podx.local", "")
+	if err != nil {
+		b.Fatalf("key generation failed: %v", err)
+	}
+
+	plaintext := []byte("benchmark test data for native GPG encryption")
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := GPGEncryptNative(plaintext, publicKey)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkGPGDecryptNative(b *testing.B) {
+	// Setup: generate key and encrypt data
+	_, privateKey, publicKey, err := GenerateGPGKeyNative("Benchmark User", "bench@podx.local", "")
+	if err != nil {
+		b.Fatalf("key generation failed: %v", err)
+	}
+
+	plaintext := []byte("benchmark test data for native GPG decryption")
+	ciphertext, err := GPGEncryptNative(plaintext, publicKey)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := GPGDecryptNative(ciphertext, privateKey, "")
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkGPGKeyGenerationNative(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_, _, _, err := GenerateGPGKeyNative("Benchmark User", "bench@podx.local", "")
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
